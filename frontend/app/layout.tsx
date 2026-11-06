@@ -18,12 +18,30 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'MÁY ẢNH TOP 1' }],
   metadataBase: new URL('https://sp.mayanhtop1.com'),
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: '192x192', type: 'image/png' },
+      { url: '/logo.png', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/logo.png',
+  },
   openGraph: {
     title: 'MÁY ẢNH TOP 1 - Chuyên Máy Ảnh Cũ Sài Gòn',
     description: 'Kho máy ảnh cũ tuyển chọn, bảo hành 6 tháng, ảnh thật 100%. Hotline/Zalo: 0986834449',
     type: 'website',
     locale: 'vi_VN',
     siteName: 'MÁY ẢNH TOP 1',
+    images: [
+      {
+        url: '/logo.png',
+        width: 1000,
+        height: 1000,
+        alt: 'Logo MÁY ẢNH TOP 1',
+      },
+    ],
   },
 };
 

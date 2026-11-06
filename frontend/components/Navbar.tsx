@@ -89,14 +89,14 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
           {/* Logo & Store Title */}
-          <Link href="/" className="flex items-center gap-3 shrink-0 group">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 p-0.5 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 group-hover:rotate-12 transition-transform duration-300" />
-              </div>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 shrink-0 group">
+            <img
+              src="/logo.png"
+              alt="Logo MÁY ẢNH TOP 1"
+              className="h-10 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+            />
             <div className="flex flex-col">
-              <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors">
+              <span className="font-black text-lg sm:text-2xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
                 MÁY ẢNH TOP 1
               </span>
               <span className="text-[11px] sm:text-xs text-slate-500 font-medium">

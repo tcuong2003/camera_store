@@ -435,9 +435,11 @@ export default function AdminPage() {
       <div className="min-h-[75vh] flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600 shadow-sm">
-              <Lock className="w-7 h-7" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Logo MÁY ẢNH TOP 1"
+              className="w-16 h-16 object-contain mx-auto mb-2"
+            />
             <h1 className="text-2xl font-black text-slate-900">Quản trị MÁY ẢNH TOP 1</h1>
             <p className="text-xs text-slate-500">
               Đăng nhập để thêm, sửa, xóa máy ảnh và cập nhật album ảnh ngoại hình

@@ -11,9 +11,11 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-md">
-                <Camera className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/logo.png"
+                alt="Logo MÁY ẢNH TOP 1"
+                className="w-10 h-10 object-contain rounded-lg"
+              />
               <span className="font-extrabold text-xl text-slate-900 tracking-tight">MÁY ẢNH TOP 1</span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
