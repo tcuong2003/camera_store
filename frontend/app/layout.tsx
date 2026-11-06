@@ -31,7 +31,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#0c0a09',
+  themeColor: '#f4f5f7',
 };
 
 export default function RootLayout({
@@ -40,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className="scroll-smooth dark">
-      <body className="bg-stone-950 text-stone-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-stone-950">
+    <html lang="vi" className="scroll-smooth">
+      <body className="bg-[#f4f5f7] text-slate-800 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-white">
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />

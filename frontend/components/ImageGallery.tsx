@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize2, X, Camera, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Maximize2, X, Camera } from 'lucide-react';
 
 interface ImageGalleryProps {
   images: string[];
@@ -39,7 +39,6 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (e) {
-      // Fallback
       window.open(currentImage, '_blank');
     }
   };
@@ -47,16 +46,16 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
   return (
     <div className="space-y-3">
       {/* Main Large Image View */}
-      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-stone-950 border border-stone-800 group shadow-2xl">
+      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 group shadow-md">
         <img
           src={currentImage}
           alt={`${productName} - Ảnh ${selectedIndex + 1}`}
-          className="w-full h-full object-contain sm:object-cover bg-stone-950/40"
+          className="w-full h-full object-contain sm:object-cover"
         />
 
         {/* Counter Badge */}
         <div className="absolute top-3 left-3 z-10">
-          <span className="px-3 py-1 rounded-full bg-stone-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-xs font-mono font-bold shadow">
+          <span className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-amber-300 border border-white/20 text-xs font-mono font-bold shadow">
             Ảnh thật {selectedIndex + 1} / {imageList.length}
           </span>
         </div>
@@ -65,14 +64,14 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
         <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
           <button
             onClick={handleDownload}
-            className="p-2 rounded-xl bg-stone-900/80 hover:bg-amber-500 text-stone-200 hover:text-stone-950 backdrop-blur-md border border-stone-700/80 shadow transition-all"
+            className="p-2 rounded-xl bg-slate-900/80 hover:bg-amber-500 text-white hover:text-slate-950 backdrop-blur-md border border-white/20 shadow transition-all"
             title="Tải ảnh này về máy để gửi Zalo cho shop"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsFullscreen(true)}
-            className="p-2 rounded-xl bg-stone-900/80 hover:bg-amber-500 text-stone-200 hover:text-stone-950 backdrop-blur-md border border-stone-700/80 shadow transition-all"
+            className="p-2 rounded-xl bg-slate-900/80 hover:bg-amber-500 text-white hover:text-slate-950 backdrop-blur-md border border-white/20 shadow transition-all"
             title="Phóng to toàn màn hình"
           >
             <Maximize2 className="w-4 h-4" />
@@ -84,14 +83,14 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
           <>
             <button
               onClick={handlePrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-stone-950/70 hover:bg-stone-900 text-white backdrop-blur border border-stone-700/60 transition-transform active:scale-95"
+              className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white backdrop-blur border border-white/20 transition-transform active:scale-95"
               aria-label="Ảnh trước"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-stone-950/70 hover:bg-stone-900 text-white backdrop-blur border border-stone-700/60 transition-transform active:scale-95"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-950/70 hover:bg-slate-900 text-white backdrop-blur border border-white/20 transition-transform active:scale-95"
               aria-label="Ảnh kế tiếp"
             >
               <ChevronRight className="w-5 h-5" />
@@ -100,22 +99,22 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
         )}
 
         {/* Bottom subtle note */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-stone-950/75 backdrop-blur text-[11px] text-stone-300 font-medium">
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-950/75 backdrop-blur text-[11px] text-slate-200 font-medium">
           Ảnh ngoại hình chụp thật tại shop 100%
         </div>
       </div>
 
       {/* Thumbnails strip */}
       {imageList.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-stone-700">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
           {imageList.map((img, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedIndex(idx)}
-              className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-stone-950 border-2 transition-all ${
+              className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border-2 transition-all ${
                 selectedIndex === idx
-                  ? 'border-amber-500 ring-2 ring-amber-500/30 scale-105'
-                  : 'border-stone-800 opacity-60 hover:opacity-100'
+                  ? 'border-amber-500 ring-2 ring-amber-400/40 scale-105'
+                  : 'border-slate-200 opacity-70 hover:opacity-100'
               }`}
             >
               <img
@@ -123,7 +122,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 alt={`Thumbnail ${idx + 1}`}
                 className="w-full h-full object-cover"
               />
-              <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-stone-300 bg-stone-950/80 px-1 rounded">
+              <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
                 #{idx + 1}
               </span>
             </button>
@@ -133,8 +132,8 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
       {/* Fullscreen Modal View */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-stone-950/95 backdrop-blur-lg flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between text-stone-200 pb-3 border-b border-stone-800">
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between text-white pb-3 border-b border-slate-800">
             <div className="flex items-center gap-3">
               <Camera className="w-5 h-5 text-amber-500" />
               <span className="font-semibold text-sm sm:text-base line-clamp-1">
@@ -144,14 +143,14 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownload}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-xs font-medium text-stone-200"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white"
               >
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Lưu ảnh</span>
               </button>
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="p-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -169,13 +168,13 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
               <>
                 <button
                   onClick={handlePrev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-stone-900/80 hover:bg-stone-800 text-white border border-stone-700 shadow-xl"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-slate-700 shadow-xl"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
                 <button
                   onClick={handleNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-stone-900/80 hover:bg-stone-800 text-white border border-stone-700 shadow-xl"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-slate-700 shadow-xl"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
@@ -190,7 +189,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 key={idx}
                 onClick={() => setSelectedIndex(idx)}
                 className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedIndex === idx ? 'border-amber-500 scale-110' : 'border-stone-800 opacity-50'
+                  selectedIndex === idx ? 'border-amber-500 scale-110' : 'border-slate-800 opacity-50'
                 }`}
               >
                 <img src={img} alt="Thumb" className="w-full h-full object-cover" />
