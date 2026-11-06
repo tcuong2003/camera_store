@@ -1,0 +1,14 @@
+{
+  "name": "camera-store-mayanhtop1",
+  "version": "1.0.0",
+  "description": "Camera Catalog Web App for MAY ANH TOP 1 (sp.mayanhtop1.com)",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  },
+  "keywords": ["camera", "catalog", "nextjs", "express", "mongodb", "cloudinary"],
+  "author": "MAY ANH TOP 1",
+  "license": "ISC"
+}

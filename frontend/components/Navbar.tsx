@@ -1,0 +1,187 @@
+'use client';
+
+import React, { useState, Suspense } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Camera, Search, Phone, MessageSquare, Sparkles, X } from 'lucide-react';
+
+function SearchInput({
+  isMobile = false,
+  onClose,
+}: {
+  isMobile?: boolean;
+  onClose?: () => void;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(currentSearch);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/?search=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      router.push('/');
+    }
+    if (onClose) onClose();
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    router.push('/');
+    if (onClose) onClose();
+  };
+
+  if (isMobile) {
+    return (
+      <form onSubmit={handleSearchSubmit} className="relative w-full">
+        <input
+          type="text"
+          placeholder="Tìm model máy (Sony, Canon, Fuji...)"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          autoFocus
+          className="w-full bg-stone-800 border border-stone-700 rounded-xl py-2.5 pl-11 pr-10 text-sm text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2" />
+        {searchTerm && (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </form>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSearchSubmit} className="relative w-full">
+      <input
+        type="text"
+        placeholder="Tìm tên máy (Canon 60D, Sony A6000, Fuji X-T20...)"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full bg-stone-800/80 border border-stone-700 rounded-full py-2.5 pl-11 pr-10 text-sm text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all shadow-inner"
+      />
+      <Search className="w-4 h-4 text-stone-400 absolute left-4 top-1/2 -translate-y-1/2" />
+      {searchTerm && (
+        <button
+          type="button"
+          onClick={clearSearch}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white p-1"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </form>
+  );
+}
+
+export default function Navbar() {
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-40 w-full bg-stone-900/95 backdrop-blur border-b border-stone-800 text-stone-100 shadow-md">
+      {/* Top Banner Notice */}
+      <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-stone-950 text-xs sm:text-sm font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2">
+        <Sparkles className="w-3.5 h-3.5" />
+        <span>KHO MÁY ẢNH CŨ SÀI GÒN - BẢO HÀNH 06 THÁNG - 1 ĐỔI 1 TRONG 07 NGÀY</span>
+        <span className="hidden md:inline font-mono bg-stone-900/15 px-2 py-0.5 rounded text-[11px]">
+          Hotline: 0986.834.449
+        </span>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
+          {/* Logo & Store Title */}
+          <Link href="/" className="flex items-center gap-3 shrink-0 group">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 p-0.5 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-stone-950 rounded-[10px] flex items-center justify-center">
+                <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 group-hover:rotate-12 transition-transform duration-300" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-white group-hover:text-amber-400 transition-colors">
+                  MÁY ẢNH TOP 1
+                </span>
+                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  SÀI GÒN
+                </span>
+              </div>
+              <span className="text-[11px] sm:text-xs text-stone-400 font-medium">
+                Chuyên máy ảnh cũ &amp; phụ kiện uy tín
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Search Bar wrapped in Suspense */}
+          <div className="hidden md:flex flex-1 max-w-md mx-6">
+            <Suspense fallback={<div className="w-full h-10 bg-stone-800/50 rounded-full animate-pulse" />}>
+              <SearchInput />
+            </Suspense>
+          </div>
+
+          {/* Action Contact Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Mobile search toggle */}
+            <button
+              onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+              className="md:hidden p-2 rounded-lg bg-stone-800 text-stone-300 hover:text-white"
+              aria-label="Tìm kiếm"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            {/* Hotline call */}
+            <a
+              href="tel:0986834449"
+              className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-stone-800/90 border border-stone-700 hover:border-amber-500/50 text-stone-200 hover:text-white transition-all group"
+            >
+              <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                <Phone className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] text-stone-400 uppercase font-semibold">Hotline 24/7</span>
+                <span className="text-xs font-bold font-mono text-amber-400">0986.834.449</span>
+              </div>
+            </a>
+
+            {/* Direct Zalo Button */}
+            <a
+              href="https://zalo.me/0986834449"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-blue-500/20 active:scale-95 transition-all"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Chat Zalo</span>
+            </a>
+
+            {/* Admin entry link */}
+            <Link
+              href="/admin"
+              className="px-2.5 py-2 text-stone-400 hover:text-amber-400 text-xs font-medium rounded-lg hover:bg-stone-800 transition-colors"
+              title="Khu vực Quản trị"
+            >
+              Admin
+            </Link>
+          </div>
+        </div>
+
+        {/* Mobile Search Input Drawer */}
+        {isMobileSearchOpen && (
+          <div className="md:hidden py-3 pb-4 border-t border-stone-800 animate-in fade-in slide-in-from-top-2 duration-200">
+            <Suspense fallback={<div className="w-full h-10 bg-stone-800 rounded-xl animate-pulse" />}>
+              <SearchInput isMobile onClose={() => setIsMobileSearchOpen(false)} />
+            </Suspense>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
