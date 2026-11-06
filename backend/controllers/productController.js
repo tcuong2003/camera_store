@@ -1,5 +1,9 @@
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const slugify = require('slugify');
+const memoryStore = require('../config/memoryStore');
+
+const isDbConnected = () => mongoose.connection.readyState === 1;
 
 // Helper to determine priceCategory based on price
 const calculatePriceCategory = (price) => {
@@ -26,14 +30,73 @@ const getProducts = async (req, res) => {
       limit = 24,
     } = req.query;
 
+    if (!isDbConnected()) {
+      let filtered = [...memoryStore.getMemoryProducts()];
+
+      if (isAvailable !== undefined && isAvailable !== '') {
+        const bool = isAvailable === 'true';
+        filtered = filtered.filter((p) => p.isAvailable === bool);
+      }
+
+      if (search && search.trim() !== '') {
+        const s = search.trim().toLowerCase();
+        filtered = filtered.filter(
+          (p) =>
+            p.name.toLowerCase().includes(s) ||
+            p.brand.toLowerCase().includes(s) ||
+            (p.condition && p.condition.toLowerCase().includes(s)) ||
+            (p.description && p.description.toLowerCase().includes(s))
+        );
+      }
+
+      if (brand && brand !== 'all') {
+        const brands = brand.split(',').map((b) => b.trim().toLowerCase());
+        filtered = filtered.filter((p) => brands.includes(p.brand.toLowerCase()));
+      }
+
+      if (priceCategory && priceCategory !== 'all') {
+        const priceCats = priceCategory.split(',').map((p) => p.trim());
+        filtered = filtered.filter((p) => priceCats.includes(p.priceCategory));
+      }
+
+      if (category && category !== 'all') {
+        const categories = category.split(',').map((c) => c.trim());
+        filtered = filtered.filter((p) => categories.includes(p.category));
+      }
+
+      if (deviceType && deviceType !== 'all') {
+        filtered = filtered.filter((p) => p.deviceType?.toLowerCase() === deviceType.toLowerCase());
+      }
+
+      if (sort === 'price_asc') {
+        filtered.sort((a, b) => a.price - b.price);
+      } else if (sort === 'price_desc') {
+        filtered.sort((a, b) => b.price - a.price);
+      } else if (sort === 'views_desc') {
+        filtered.sort((a, b) => (b.views || 0) - (a.views || 0));
+      }
+
+      const total = filtered.length;
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 24;
+      const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+      return res.status(200).json({
+        success: true,
+        count: paginated.length,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        currentPage: pageNum,
+        products: paginated,
+      });
+    }
+
     const query = {};
 
-    // Filter by availability (default: only show available on client unless specified)
     if (isAvailable !== undefined && isAvailable !== '') {
       query.isAvailable = isAvailable === 'true';
     }
 
-    // Search keyword
     if (search && search.trim() !== '') {
       const searchRegex = new RegExp(search.trim(), 'i');
       query.$or = [
@@ -45,38 +108,29 @@ const getProducts = async (req, res) => {
       ];
     }
 
-    // Filter by Brand (can be single or multiple comma-separated)
     if (brand && brand !== 'all') {
       const brands = brand.split(',').map((b) => b.trim());
       query.brand = { $in: brands.map((b) => new RegExp(`^${b}$`, 'i')) };
     }
 
-    // Filter by Price Category
     if (priceCategory && priceCategory !== 'all') {
       const priceCats = priceCategory.split(',').map((p) => p.trim());
       query.priceCategory = { $in: priceCats };
     }
 
-    // Filter by Category (device type or section)
     if (category && category !== 'all') {
       const categories = category.split(',').map((c) => c.trim());
       query.category = { $in: categories };
     }
 
-    // Filter by Device Type
     if (deviceType && deviceType !== 'all') {
       query.deviceType = new RegExp(`^${deviceType}$`, 'i');
     }
 
-    // Sorting
-    let sortOption = { createdAt: -1 }; // default newest
-    if (sort === 'price_asc') {
-      sortOption = { price: 1 };
-    } else if (sort === 'price_desc') {
-      sortOption = { price: -1 };
-    } else if (sort === 'views_desc') {
-      sortOption = { views: -1 };
-    }
+    let sortOption = { createdAt: -1 };
+    if (sort === 'price_asc') sortOption = { price: 1 };
+    else if (sort === 'price_desc') sortOption = { price: -1 };
+    else if (sort === 'views_desc') sortOption = { views: -1 };
 
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 24;
@@ -111,8 +165,27 @@ const getProducts = async (req, res) => {
 const getProductBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const product = await Product.findOne({ slug });
 
+    if (!isDbConnected()) {
+      const products = memoryStore.getMemoryProducts();
+      const product = products.find((p) => p.slug === slug);
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm này' });
+      }
+
+      product.views = (product.views || 0) + 1;
+      const related = products
+        .filter((p) => p.slug !== slug && (p.brand === product.brand || p.priceCategory === product.priceCategory))
+        .slice(0, 4);
+
+      return res.status(200).json({
+        success: true,
+        product,
+        related,
+      });
+    }
+
+    const product = await Product.findOne({ slug });
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -120,11 +193,9 @@ const getProductBySlug = async (req, res) => {
       });
     }
 
-    // Increment views
     product.views = (product.views || 0) + 1;
     await product.save({ validateBeforeSave: false });
 
-    // Get related products from same brand or category
     const related = await Product.find({
       _id: { $ne: product._id },
       $or: [{ brand: product.brand }, { priceCategory: product.priceCategory }],
@@ -152,22 +223,19 @@ const getProductBySlug = async (req, res) => {
 // @access  Private/Admin
 const getProductById = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      const product = memoryStore.getMemoryProducts().find((p) => p._id === req.params.id);
+      if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
+      return res.status(200).json({ success: true, product });
+    }
+
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy sản phẩm',
-      });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
     }
-    return res.status(200).json({
-      success: true,
-      product,
-    });
+    return res.status(200).json({ success: true, product });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -207,17 +275,45 @@ const createProduct = async (req, res) => {
       });
     }
 
-    // Generate unique slug
     let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' });
     let uniqueSlug = baseSlug;
+
+    const computedPriceCategory = priceCategory || calculatePriceCategory(Number(price));
+
+    if (!isDbConnected()) {
+      const newProd = {
+        _id: `prod-${Date.now()}`,
+        name,
+        slug: uniqueSlug,
+        price: Number(price),
+        originalPrice: originalPrice ? Number(originalPrice) : 0,
+        condition: condition || 'Ngoại hình 98% - Hoạt động hoàn hảo',
+        brand,
+        priceCategory: computedPriceCategory,
+        category: category || 'may-anh-cu',
+        deviceType: deviceType || 'Mirrorless',
+        images,
+        description: description || '',
+        accessories: accessories || 'Pin zin, Sạc zin, Dây đeo, Tặng thẻ nhớ 32GB',
+        warranty: warranty || 'Bảo hành 06 tháng phần cứng',
+        isAvailable: isAvailable !== undefined ? isAvailable : true,
+        featured: featured || false,
+        views: 0,
+        createdAt: new Date().toISOString(),
+      };
+      memoryStore.addMemoryProduct(newProd);
+      return res.status(201).json({
+        success: true,
+        message: 'Đã thêm sản phẩm mới thành công!',
+        product: newProd,
+      });
+    }
+
     let count = 1;
     while (await Product.findOne({ slug: uniqueSlug })) {
       uniqueSlug = `${baseSlug}-${count}`;
       count++;
     }
-
-    // Determine priceCategory if not provided
-    const computedPriceCategory = priceCategory || calculatePriceCategory(Number(price));
 
     const product = new Product({
       name,
@@ -258,12 +354,17 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const { id } = req.params;
+
+    if (!isDbConnected()) {
+      const updated = memoryStore.updateMemoryProduct(id, req.body);
+      if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm để cập nhật' });
+      return res.status(200).json({ success: true, message: 'Cập nhật thành công', product: updated });
+    }
+
+    const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy sản phẩm để cập nhật',
-      });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm để cập nhật' });
     }
 
     const {
@@ -285,21 +386,13 @@ const updateProduct = async (req, res) => {
 
     if (name && name !== product.name) {
       let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' });
-      let uniqueSlug = baseSlug;
-      let count = 1;
-      while (await Product.findOne({ slug: uniqueSlug, _id: { $ne: product._id } })) {
-        uniqueSlug = `${baseSlug}-${count}`;
-        count++;
-      }
-      product.slug = uniqueSlug;
+      product.slug = baseSlug;
       product.name = name;
     }
 
     if (price !== undefined) {
       product.price = Number(price);
-      if (!priceCategory) {
-        product.priceCategory = calculatePriceCategory(Number(price));
-      }
+      if (!priceCategory) product.priceCategory = calculatePriceCategory(Number(price));
     }
     if (priceCategory) product.priceCategory = priceCategory;
     if (originalPrice !== undefined) product.originalPrice = Number(originalPrice);
@@ -322,11 +415,7 @@ const updateProduct = async (req, res) => {
       product: updatedProduct,
     });
   } catch (error) {
-    console.error('Error updating product:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi khi cập nhật sản phẩm: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Lỗi khi cập nhật sản phẩm: ' + error.message });
   }
 };
 
@@ -335,25 +424,16 @@ const updateProduct = async (req, res) => {
 // @access  Private/Admin
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy sản phẩm để xóa',
-      });
+    const { id } = req.params;
+    if (!isDbConnected()) {
+      memoryStore.deleteMemoryProduct(id);
+      return res.status(200).json({ success: true, message: 'Đã xóa sản phẩm thành công' });
     }
 
-    await Product.findByIdAndDelete(req.params.id);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Đã xóa sản phẩm thành công',
-    });
+    await Product.findByIdAndDelete(id);
+    return res.status(200).json({ success: true, message: 'Đã xóa sản phẩm thành công' });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi khi xóa sản phẩm: ' + error.message,
-    });
+    return res.status(500).json({ success: false, message: 'Lỗi khi xóa sản phẩm: ' + error.message });
   }
 };
 
@@ -362,6 +442,24 @@ const deleteProduct = async (req, res) => {
 // @access  Private/Admin
 const getAdminStats = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      const all = memoryStore.getMemoryProducts();
+      const totalProducts = all.length;
+      const availableProducts = all.filter((p) => p.isAvailable).length;
+      const soldOutProducts = totalProducts - availableProducts;
+
+      return res.status(200).json({
+        success: true,
+        stats: {
+          totalProducts,
+          availableProducts,
+          soldOutProducts,
+          brandStats: [],
+          priceCatStats: [],
+        },
+      });
+    }
+
     const totalProducts = await Product.countDocuments();
     const availableProducts = await Product.countDocuments({ isAvailable: true });
     const soldOutProducts = totalProducts - availableProducts;
@@ -386,10 +484,7 @@ const getAdminStats = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
