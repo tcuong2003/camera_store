@@ -34,6 +34,7 @@ import {
   formatVND,
 } from '../../lib/api';
 import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '../../lib/mockData';
+import CustomDropdown, { DropdownOption } from '../../components/CustomDropdown';
 
 export default function AdminPage() {
   // Auth state
@@ -66,16 +67,17 @@ export default function AdminPage() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState<number | ''>('');
   const [originalPrice, setOriginalPrice] = useState<number | ''>('');
-  const [condition, setCondition] = useState('Ngoại hình 98% - Sensor sạch trong');
   const [brand, setBrand] = useState('Sony');
-  const [priceCategory, setPriceCategory] = useState<'under_3m' | '3m_5m' | '5m_10m' | 'above_10m'>('5m_10m');
   const [category, setCategory] = useState('may-anh-cu');
-  const [deviceType, setDeviceType] = useState('Mirrorless');
-  const [accessories, setAccessories] = useState('1 Pin zin, 1 Sạc rời, Dây đeo, Tặng kèm thẻ nhớ 32GB');
-  const [warranty, setWarranty] = useState('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
   const [description, setDescription] = useState('');
   const [isAvailable, setIsAvailable] = useState(true);
   const [featured, setFeatured] = useState(false);
+
+  // Fallback / preserved internal fields
+  const [condition, setCondition] = useState('Ngoại hình đẹp - Hoạt động hoàn hảo');
+  const [deviceType, setDeviceType] = useState('Mirrorless');
+  const [accessories, setAccessories] = useState('Đầy đủ pin, sạc, dây đeo sẵn dùng');
+  const [warranty, setWarranty] = useState('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
 
   // Multi-image upload state
   const [images, setImages] = useState<string[]>([]);
@@ -179,14 +181,13 @@ export default function AdminPage() {
     setName('');
     setPrice('');
     setOriginalPrice('');
-    setCondition('Ngoại hình 98% - Sensor sạch trong');
     setBrand('Sony');
-    setPriceCategory('5m_10m');
     setCategory('may-anh-cu');
-    setDeviceType('Mirrorless');
-    setAccessories('1 Pin zin, 1 Sạc rời, Dây đeo, Tặng kèm thẻ nhớ 32GB');
-    setWarranty('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
     setDescription('');
+    setCondition('Ngoại hình đẹp - Hoạt động hoàn hảo');
+    setDeviceType('Mirrorless');
+    setAccessories('Đầy đủ pin, sạc, dây đeo sẵn dùng');
+    setWarranty('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
     setImages([]);
     setIsAvailable(true);
     setFeatured(false);
@@ -200,14 +201,13 @@ export default function AdminPage() {
     setName(p.name);
     setPrice(p.price);
     setOriginalPrice(p.originalPrice || '');
-    setCondition(p.condition);
     setBrand(p.brand);
-    setPriceCategory(p.priceCategory);
     setCategory(p.category);
+    setDescription(p.description || '');
+    setCondition(p.condition || 'Ngoại hình đẹp - Hoạt động hoàn hảo');
     setDeviceType(p.deviceType || 'Mirrorless');
     setAccessories(p.accessories || '');
     setWarranty(p.warranty || '');
-    setDescription(p.description || '');
     setImages(p.images || []);
     setIsAvailable(p.isAvailable);
     setFeatured(p.featured || false);
@@ -286,11 +286,12 @@ export default function AdminPage() {
     setImages(images.filter((_, idx) => idx !== index));
   };
 
-  const addImageUrlManually = () => {
-    const url = prompt('Nhập URL hình ảnh trực tiếp (Cloudinary / Unsplash):');
-    if (url && url.trim()) {
-      setImages([...images, url.trim()]);
-    }
+  // Helper to auto-calculate price category
+  const calcPriceCat = (p: number): 'under_3m' | '3m_5m' | '5m_10m' | 'above_10m' => {
+    if (p < 3000000) return 'under_3m';
+    if (p <= 5000000) return '3m_5m';
+    if (p <= 10000000) return '5m_10m';
+    return 'above_10m';
   };
 
   // Submit product create/edit
@@ -306,17 +307,25 @@ export default function AdminPage() {
       return;
     }
 
+    const autoPriceCategory = calcPriceCat(Number(price));
+    const autoDeviceType =
+      category === 'ong-kinh'
+        ? 'Lens'
+        : category === 'phu-kien'
+        ? 'Accessory'
+        : deviceType || 'Mirrorless';
+
     const payload: Partial<Product> = {
       name,
       price: Number(price),
       originalPrice: originalPrice !== '' ? Number(originalPrice) : 0,
-      condition,
+      condition: condition || 'Ngoại hình đẹp - Hoạt động hoàn hảo',
       brand,
-      priceCategory,
+      priceCategory: autoPriceCategory,
       category,
-      deviceType,
-      accessories,
-      warranty,
+      deviceType: autoDeviceType,
+      accessories: accessories || 'Đầy đủ phụ kiện theo máy',
+      warranty: warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1',
       description,
       images,
       isAvailable,
@@ -335,14 +344,14 @@ export default function AdminPage() {
             slug: name.toLowerCase().replace(/\s+/g, '-'),
             price: Number(price),
             originalPrice: originalPrice ? Number(originalPrice) : 0,
-            condition,
+            condition: condition || 'Ngoại hình đẹp - Hoạt động hoàn hảo',
             brand,
-            priceCategory,
+            priceCategory: autoPriceCategory,
             category,
-            deviceType,
+            deviceType: autoDeviceType,
             images,
-            accessories,
-            warranty,
+            accessories: accessories || 'Đầy đủ phụ kiện theo máy',
+            warranty: warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1',
             description,
             isAvailable,
             featured,
@@ -429,6 +438,57 @@ export default function AdminPage() {
   // Distinct brand list for filtering
   const allBrands = Array.from(new Set(products.map((p) => p.brand))).filter(Boolean);
 
+  // Options for CustomDropdowns
+  const brandOptions: DropdownOption[] = [
+    { label: 'Sony', value: 'Sony' },
+    { label: 'Canon', value: 'Canon' },
+    { label: 'Fujifilm', value: 'Fujifilm' },
+    { label: 'Nikon', value: 'Nikon' },
+    { label: 'Lumix', value: 'Lumix' },
+    { label: 'Olympus', value: 'Olympus' },
+    { label: 'Ricoh', value: 'Ricoh' },
+    { label: 'Casio', value: 'Casio' },
+    { label: 'Leica', value: 'Leica' },
+    { label: 'Sigma', value: 'Sigma' },
+    { label: 'Tamron', value: 'Tamron' },
+    { label: 'Kingma', value: 'Kingma' },
+    { label: 'SanDisk', value: 'SanDisk' },
+    { label: 'Khác', value: 'Khác' },
+  ];
+
+  const categoryOptions: DropdownOption[] = [
+    { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
+    { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
+    { label: 'Ống kính (Lens)', value: 'ong-kinh' },
+    { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
+  ];
+
+  const filterBrandOptions: DropdownOption[] = [
+    { label: 'Tất cả hãng', value: 'all' },
+    ...allBrands.map((b) => ({ label: b, value: b })),
+  ];
+
+  const filterCategoryOptions: DropdownOption[] = [
+    { label: 'Tất cả danh mục', value: 'all' },
+    { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
+    { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
+    { label: 'Ống kính (Lens)', value: 'ong-kinh' },
+    { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
+  ];
+
+  const filterStatusOptions: DropdownOption[] = [
+    { label: 'Tất cả trạng thái', value: 'all' },
+    { label: 'Đang sẵn hàng', value: 'available' },
+    { label: 'Đã bán', value: 'sold' },
+  ];
+
+  const catTypeOptions: DropdownOption[] = [
+    { label: 'Thương hiệu (Brand)', value: 'brand' },
+    { label: 'Tầm giá (Price)', value: 'price' },
+    { label: 'Danh mục chính', value: 'category' },
+    { label: 'Định dạng máy', value: 'device_type' },
+  ];
+
   // If not logged in, render Admin Login screen
   if (!token) {
     return (
@@ -485,7 +545,7 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-md active:scale-95 transition-all disabled:opacity-50"
+              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-md active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
             >
               {isLoggingIn ? 'Đang xác thực...' : 'Đăng nhập Quản trị viên'}
             </button>
@@ -528,7 +588,7 @@ export default function AdminPage() {
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs sm:text-sm font-semibold border border-rose-200 transition-colors shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs sm:text-sm font-semibold border border-rose-200 transition-colors shadow-xs cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Đăng xuất ({adminUser})</span>
@@ -592,7 +652,7 @@ export default function AdminPage() {
             setActiveTab('products');
             setAdminPage(1);
           }}
-          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === 'products'
               ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
               : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -602,7 +662,7 @@ export default function AdminPage() {
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
             activeTab === 'categories'
               ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
               : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -629,7 +689,7 @@ export default function AdminPage() {
                     setSearchTerm(e.target.value);
                     setAdminPage(1);
                   }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
                 />
                 {searchTerm && (
                   <button
@@ -637,66 +697,49 @@ export default function AdminPage() {
                       setSearchTerm('');
                       setAdminPage(1);
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {/* Filters & Add Button */}
+              {/* Synchronized Custom Dropdowns & Add Button */}
               <div className="flex flex-wrap items-center gap-2.5">
                 {/* Brand Filter */}
-                <select
+                <CustomDropdown
+                  options={filterBrandOptions}
                   value={filterBrand}
-                  onChange={(e) => {
-                    setFilterBrand(e.target.value);
+                  onChange={(val) => {
+                    setFilterBrand(val);
                     setAdminPage(1);
                   }}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                >
-                  <option value="all">Tất cả hãng</option>
-                  {allBrands.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                />
 
                 {/* Category Filter */}
-                <select
+                <CustomDropdown
+                  options={filterCategoryOptions}
                   value={filterCategory}
-                  onChange={(e) => {
-                    setFilterCategory(e.target.value);
+                  onChange={(val) => {
+                    setFilterCategory(val);
                     setAdminPage(1);
                   }}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                >
-                  <option value="all">Tất cả danh mục</option>
-                  <option value="may-anh-cu">Máy ảnh cũ</option>
-                  <option value="may-anh-chinh-hang">Máy ảnh chính hãng</option>
-                  <option value="ong-kinh">Ống kính (Lens)</option>
-                  <option value="phu-kien">Phụ kiện máy ảnh</option>
-                </select>
+                />
 
                 {/* Status Filter */}
-                <select
+                <CustomDropdown
+                  options={filterStatusOptions}
                   value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value as any);
+                  onChange={(val) => {
+                    setFilterStatus(val as any);
                     setAdminPage(1);
                   }}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="available">Đang sẵn hàng</option>
-                  <option value="sold">Đã bán</option>
-                </select>
+                />
 
                 {/* Add New Button */}
                 <button
                   onClick={handleOpenCreate}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-95 shrink-0"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-95 shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Thêm Máy Mới</span>
@@ -718,7 +761,7 @@ export default function AdminPage() {
                     setFilterStatus('all');
                     setAdminPage(1);
                   }}
-                  className="text-amber-600 hover:underline font-semibold"
+                  className="text-amber-600 hover:underline font-semibold cursor-pointer"
                 >
                   Xóa bộ lọc
                 </button>
@@ -812,14 +855,14 @@ export default function AdminPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenEdit(p)}
-                              className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 hover:text-white text-slate-600 transition-colors shadow-2xs"
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 hover:text-white text-slate-600 transition-colors shadow-2xs cursor-pointer"
                               title="Sửa thông tin & ảnh máy"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(p._id, p.name)}
-                              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition-colors shadow-2xs"
+                              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition-colors shadow-2xs cursor-pointer"
                               title="Xóa máy khỏi kho"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -848,7 +891,7 @@ export default function AdminPage() {
                   <button
                     onClick={() => setAdminPage((prev) => Math.max(prev - 1, 1))}
                     disabled={adminPage === 1}
-                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs"
+                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs cursor-pointer"
                     title="Trang trước"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -865,7 +908,7 @@ export default function AdminPage() {
                         <button
                           key={pageNum}
                           onClick={() => setAdminPage(pageNum)}
-                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer ${
                             adminPage === pageNum
                               ? 'bg-amber-500 text-white'
                               : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -888,7 +931,7 @@ export default function AdminPage() {
                   <button
                     onClick={() => setAdminPage((prev) => Math.min(prev + 1, totalPages))}
                     disabled={adminPage === totalPages}
-                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs"
+                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs cursor-pointer"
                     title="Trang sau"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -913,19 +956,15 @@ export default function AdminPage() {
                 onChange={(e) => setNewCatName(e.target.value)}
                 className="flex-1 min-w-[200px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
               />
-              <select
+              <CustomDropdown
+                options={catTypeOptions}
                 value={newCatType}
-                onChange={(e) => setNewCatType(e.target.value as any)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="brand">Thương hiệu (Brand)</option>
-                <option value="price">Tầm giá (Price)</option>
-                <option value="category">Danh mục chính</option>
-                <option value="device_type">Định dạng máy</option>
-              </select>
+                onChange={(v) => setNewCatType(v as any)}
+                className="min-w-[190px]"
+              />
               <button
                 onClick={handleAddCategory}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xs transition-all active:scale-95"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 Thêm Nhãn
               </button>
@@ -946,7 +985,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={() => handleDeleteCategory(idx)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                   title="Xóa nhãn"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -960,7 +999,7 @@ export default function AdminPage() {
       {/* CREATE / EDIT PRODUCT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
               <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
@@ -968,7 +1007,7 @@ export default function AdminPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1022,142 +1061,38 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Brand, Price Range, Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Brand & Category with Synchronized Custom Dropdowns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Thương hiệu *
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={brandOptions}
                     value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                  >
-                    <option value="Sony">Sony</option>
-                    <option value="Canon">Canon</option>
-                    <option value="Fujifilm">Fujifilm</option>
-                    <option value="Nikon">Nikon</option>
-                    <option value="Lumix">Lumix</option>
-                    <option value="Olympus">Olympus</option>
-                    <option value="Ricoh">Ricoh</option>
-                    <option value="Casio">Casio</option>
-                    <option value="Leica">Leica</option>
-                    <option value="Sigma">Sigma</option>
-                    <option value="Tamron">Tamron</option>
-                    <option value="Kingma">Kingma</option>
-                    <option value="SanDisk">SanDisk</option>
-                    <option value="Khác">Khác</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Tầm giá (Tag lọc) *
-                  </label>
-                  <select
-                    value={priceCategory}
-                    onChange={(e) => setPriceCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                  >
-                    <option value="under_3m">Dưới 3.000.000 đ</option>
-                    <option value="3m_5m">Từ 3 - 5 triệu</option>
-                    <option value="5m_10m">Từ 5 - 10 triệu</option>
-                    <option value="above_10m">Trên 10 triệu</option>
-                  </select>
+                    onChange={(v) => setBrand(v)}
+                    fullWidth
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Phân loại danh mục *
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={categoryOptions}
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                  >
-                    <option value="may-anh-cu">Máy ảnh cũ</option>
-                    <option value="may-anh-chinh-hang">Máy ảnh chính hãng</option>
-                    <option value="ong-kinh">Ống kính (Lens)</option>
-                    <option value="phu-kien">Phụ kiện máy ảnh</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Device Type */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Định dạng thiết bị
-                </label>
-                <select
-                  value={deviceType}
-                  onChange={(e) => setDeviceType(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                >
-                  <option value="Mirrorless">Mirrorless</option>
-                  <option value="DSLR">DSLR</option>
-                  <option value="Compact">Compact / Y2K</option>
-                  <option value="Lens">Ống kính (Lens)</option>
-                  <option value="Accessory">Phụ kiện máy ảnh</option>
-                </select>
-              </div>
-
-              {/* Condition & Warranty */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Tình trạng ngoại hình % &amp; Sensor *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Ngoại hình 99% Likenew - Sensor sạch bong"
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Chính sách bảo hành
-                  </label>
-                  <input
-                    type="text"
-                    value={warranty}
-                    onChange={(e) => setWarranty(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
+                    onChange={(v) => setCategory(v)}
+                    fullWidth
                   />
                 </div>
               </div>
 
-              {/* Accessories */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Phụ kiện đi kèm theo máy
-                </label>
-                <input
-                  type="text"
-                  placeholder="Pin zin, sạc rời, dây đeo, nắp che body/lens, thẻ nhớ..."
-                  value={accessories}
-                  onChange={(e) => setAccessories(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              {/* Multi-image Upload to Cloudinary API */}
+              {/* Multi-image Upload Zone */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Album ảnh ngoại hình tự chụp (tối đa 15 ảnh) *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={addImageUrlManually}
-                    className="text-xs text-amber-600 hover:text-amber-700 font-bold hover:underline"
-                  >
-                    + Nhập link ảnh trực tiếp
-                  </button>
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Album ảnh ngoại hình tự chụp (tối đa 15 ảnh) *
+                </label>
 
                 {/* Drag and Drop Zone */}
                 <div
@@ -1185,7 +1120,7 @@ export default function AdminPage() {
                     Kéo &amp; thả 5 - 10 ảnh vào đây, hoặc <span className="text-amber-600 underline">bấm chọn ảnh</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Hỗ trợ JPG, PNG, WEBP tự động nén &amp; tải lên Cloudinary API
+                    Hỗ trợ JPG, PNG, WEBP tự động nén
                   </p>
                 </div>
 
@@ -1193,7 +1128,7 @@ export default function AdminPage() {
                 {uploadingImages && (
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-amber-600 font-semibold">
-                      <span>Đang tải ảnh lên Cloudinary...</span>
+                      <span>Đang tải ảnh lên...</span>
                       <span>{uploadProgress}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1221,7 +1156,7 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
-                          className="absolute top-1 right-1 p-1 rounded-md bg-slate-900/80 text-white hover:bg-rose-600 transition-colors"
+                          className="absolute top-1 right-1 p-1 rounded-md bg-slate-900/80 text-white hover:bg-rose-600 transition-colors cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -1234,17 +1169,17 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Description */}
+              {/* Description - 2x height textarea */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Mô tả chi tiết &amp; đánh giá máy
                 </label>
                 <textarea
-                  rows={4}
-                  placeholder="Đặc điểm nổi bật, số shot đã chụp, ống kính kèm theo, góc máy, sensor..."
+                  rows={8}
+                  placeholder="Đặc điểm nổi bật, số shot đã chụp, tình trạng kính, cảm biến sensor, bảo hành, phụ kiện kèm theo..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white min-h-[180px] sm:min-h-[220px]"
                 />
               </div>
 
@@ -1276,13 +1211,13 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-xs active:scale-95 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
                 >
                   {modalMode === 'create' ? 'Tạo Sản Phẩm Mới' : 'Lưu Thay Đổi'}
                 </button>
