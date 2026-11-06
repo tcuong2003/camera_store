@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { Product } from '../lib/mockData';
-import { formatVND, getZaloChatUrl } from '../lib/api';
-import { MessageSquare, Eye, Images, CheckCircle2 } from 'lucide-react';
+import { formatVND } from '../lib/api';
+import { Images } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -13,32 +13,29 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const thumbnail = product.images?.[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
   const imageCount = product.images?.length || 1;
-  const zaloUrl = getZaloChatUrl(product.name);
 
   return (
-    <div className="group bg-white border border-slate-200 hover:border-amber-500/70 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/80 flex flex-col justify-between">
-      {/* Thumbnail / Album Cover with badges */}
+    <Link
+      href={`/san-pham/${product.slug}`}
+      className="group bg-white border border-slate-200 hover:border-amber-500/80 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/90 flex flex-col justify-between cursor-pointer"
+    >
+      {/* Thumbnail / Album Cover */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-        <Link href={`/san-pham/${product.slug}`} className="block w-full h-full">
-          <img
-            src={thumbnail}
-            alt={product.name}
-            loading="lazy"
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-          />
-        </Link>
+        <img
+          src={thumbnail}
+          alt={product.name}
+          loading="lazy"
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+        />
 
-        {/* Condition Badge (Top-left) */}
-        <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 items-start">
-          <span className="px-2.5 py-1 rounded-lg bg-slate-950/85 backdrop-blur-md border border-amber-400/40 text-amber-300 text-xs font-bold shadow-md">
-            {product.condition || 'Đẹp 98%'}
-          </span>
-          {product.featured && (
+        {/* Featured Badge (Top-left if featured) */}
+        {product.featured && (
+          <div className="absolute top-2.5 left-2.5 z-10">
             <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-extrabold uppercase tracking-wide shadow-sm">
               Nổi bật
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Album Image Count (Top-right) */}
         <div className="absolute top-2.5 right-2.5 z-10">
@@ -57,14 +54,12 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Card Content */}
-      <div className="p-4 flex flex-col flex-1 justify-between gap-3">
+      <div className="p-4 flex flex-col flex-1 justify-between gap-2.5">
         <div>
           {/* Product Name */}
-          <Link href={`/san-pham/${product.slug}`} className="block">
-            <h3 className="font-bold text-slate-800 text-sm sm:text-base line-clamp-2 hover:text-amber-600 transition-colors">
-              {product.name}
-            </h3>
-          </Link>
+          <h3 className="font-bold text-slate-800 text-sm sm:text-base line-clamp-2 group-hover:text-amber-600 transition-colors">
+            {product.name}
+          </h3>
 
           {/* Price display */}
           <div className="mt-2 flex items-baseline gap-2">
@@ -78,36 +73,22 @@ export default function ProductCard({ product }: ProductCardProps) {
             ) : null}
           </div>
 
-          {/* Quick specs / Accessories highlight */}
+          {/* Accessories highlight (Clean text without green tick) */}
           {product.accessories && (
-            <p className="mt-1.5 text-slate-500 text-xs line-clamp-1 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>{product.accessories}</span>
+            <p className="mt-1.5 text-slate-500 text-xs line-clamp-2 leading-relaxed">
+              {product.accessories}
             </p>
           )}
         </div>
 
-        {/* Action Buttons: Xem chi tiết & Nhắn Zalo */}
-        <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
-          <Link
-            href={`/san-pham/${product.slug}`}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold transition-colors"
-          >
-            <Eye className="w-3.5 h-3.5 text-slate-500" />
-            <span>Xem máy</span>
-          </Link>
-
-          <a
-            href={zaloUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow hover:shadow-blue-500/20 active:scale-95 transition-all"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Nhắn Zalo</span>
-          </a>
+        {/* Subtle detail note */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <span className="line-clamp-1">{product.condition}</span>
+          <span className="text-amber-600 font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
+            Xem chi tiết →
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import FilterBar, {
   FilterState,
@@ -9,6 +9,8 @@ import FilterBar, {
   SORT_OPTIONS,
 } from '../components/FilterBar';
 import ProductGrid from '../components/ProductGrid';
+import CustomDropdown from '../components/CustomDropdown';
+import Pagination from '../components/Pagination';
 import { fetchProducts } from '../lib/api';
 import { Product } from '../lib/mockData';
 import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
@@ -16,10 +18,17 @@ import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown } from 'lucide-react
 function CatalogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const catalogTopRef = useRef<HTMLDivElement>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const p = parseInt(searchParams.get('page') || '1', 10);
+    return isNaN(p) || p < 1 ? 1 : p;
+  });
 
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FilterState>({
@@ -32,7 +41,7 @@ function CatalogContent() {
 
   const searchKeyword = searchParams.get('search') || '';
 
-  // Fetch products whenever filters or search query change
+  // Fetch products whenever filters, search, or page changes
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
@@ -45,11 +54,14 @@ function CatalogContent() {
           category: filters.category,
           deviceType: filters.deviceType,
           sort: filters.sort,
+          page: currentPage,
+          limit: 16, // 4x4
         });
 
         if (isMounted) {
           setProducts(res.products || []);
           setTotalCount(res.total || 0);
+          setTotalPages(res.totalPages || 1);
         }
       } catch (err) {
         console.error('Failed to load products:', err);
@@ -65,11 +77,9 @@ function CatalogContent() {
     return () => {
       isMounted = false;
     };
-  }, [filters, searchKeyword]);
+  }, [filters, searchKeyword, currentPage]);
 
-  const handleFilterChange = (newFilters: FilterState) => {
-    setFilters(newFilters);
-    // Sync URL search params
+  const updateUrl = (newFilters: FilterState, pageNum: number) => {
     const params = new URLSearchParams();
     if (searchKeyword) params.set('search', searchKeyword);
     if (newFilters.priceCategory !== 'all') params.set('priceCategory', newFilters.priceCategory);
@@ -77,9 +87,24 @@ function CatalogContent() {
     if (newFilters.category !== 'all') params.set('category', newFilters.category);
     if (newFilters.deviceType !== 'all') params.set('deviceType', newFilters.deviceType);
     if (newFilters.sort !== 'newest') params.set('sort', newFilters.sort);
+    if (pageNum > 1) params.set('page', pageNum.toString());
 
     const qs = params.toString();
     router.push(qs ? `/?${qs}` : '/', { scroll: false });
+  };
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+    updateUrl(newFilters, 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    updateUrl(filters, newPage);
+    if (catalogTopRef.current) {
+      catalogTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const handleReset = () => {
@@ -93,7 +118,7 @@ function CatalogContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
+    <div ref={catalogTopRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
       {/* 1. Filter Section (Danh mục sản phẩm) */}
       <section>
         <FilterBar
@@ -110,7 +135,10 @@ function CatalogContent() {
             Kết quả tìm kiếm cho: <strong className="text-amber-700 font-mono">"{searchKeyword}"</strong> ({totalCount} máy)
           </span>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              setCurrentPage(1);
+              router.push('/');
+            }}
             className="text-amber-700 hover:text-amber-900 underline font-semibold"
           >
             Xóa tìm kiếm
@@ -120,7 +148,7 @@ function CatalogContent() {
 
       {/* 2. Product Grid Section with 2 Sub-filters (Khoảng giá & Thương hiệu) */}
       <section className="space-y-4">
-        {/* Header Bar: Title + 2 Filters (Tầm giá & Thương hiệu) + Sắp xếp */}
+        {/* Header Bar: Title + 2 Custom Dropdowns (Khoảng giá & Thương hiệu) + Sắp xếp */}
         <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Left Title */}
           <div>
@@ -136,67 +164,53 @@ function CatalogContent() {
             </p>
           </div>
 
-          {/* Right: 2 Sub-Filters (Khoảng giá, Thương hiệu) & Sắp xếp */}
+          {/* Right: Custom Dropdowns (Khoảng giá, Thương hiệu, Sắp xếp) */}
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             {/* Bộ lọc 1: Khoảng giá (Từ đâu đến đâu) */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-amber-500">
-              <DollarSign className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <select
-                aria-label="Khoảng giá"
-                value={filters.priceCategory}
-                onChange={(e) => handleFilterChange({ ...filters, priceCategory: e.target.value })}
-                className="bg-transparent text-xs sm:text-sm text-slate-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                {PRICE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomDropdown
+              options={PRICE_OPTIONS}
+              value={filters.priceCategory}
+              onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
+              icon={<DollarSign className="w-4 h-4 text-amber-600" />}
+              placeholder="Tất cả khoảng giá"
+            />
 
             {/* Bộ lọc 2: Thương hiệu */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-amber-500">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <select
-                aria-label="Thương hiệu"
-                value={filters.brand}
-                onChange={(e) => handleFilterChange({ ...filters, brand: e.target.value })}
-                className="bg-transparent text-xs sm:text-sm text-slate-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                {BRAND_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomDropdown
+              options={BRAND_OPTIONS}
+              value={filters.brand}
+              onChange={(val) => handleFilterChange({ ...filters, brand: val })}
+              icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
+              placeholder="Tất cả thương hiệu"
+            />
 
             {/* Sắp xếp */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-amber-500">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              <select
-                aria-label="Sắp xếp"
-                value={filters.sort}
-                onChange={(e) => handleFilterChange({ ...filters, sort: e.target.value })}
-                className="bg-transparent text-xs sm:text-sm text-slate-800 font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomDropdown
+              options={SORT_OPTIONS}
+              value={filters.sort}
+              onChange={(val) => handleFilterChange({ ...filters, sort: val })}
+              icon={<ArrowUpDown className="w-4 h-4 text-slate-500" />}
+              placeholder="Sắp xếp"
+              align="right"
+            />
           </div>
         </div>
 
-        {/* Product Grid / Album View */}
+        {/* Product Grid / Album View (4x4 = 16 items per page) */}
         <ProductGrid
           products={products}
           isLoading={isLoading}
           onResetFilters={handleReset}
         />
+
+        {/* 3. Pagination Controls (4x4) */}
+        {!isLoading && totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
       </section>
     </div>
   );

@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Camera, Search, Phone, MessageSquare, Sparkles, X } from 'lucide-react';
+import { Camera, Search, Phone, MessageSquare, X } from 'lucide-react';
 
 function SearchInput({
   isMobile = false,
@@ -86,15 +86,6 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
-      {/* Top Banner Notice */}
-      <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 text-xs sm:text-sm font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2">
-        <Sparkles className="w-3.5 h-3.5" />
-        <span>KHO MÁY ẢNH CŨ SÀI GÒN - BẢO HÀNH 06 THÁNG - 1 ĐỔI 1 TRONG 07 NGÀY</span>
-        <span className="hidden md:inline font-mono bg-slate-900/10 px-2 py-0.5 rounded text-[11px]">
-          Hotline: 0986.834.449
-        </span>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
           {/* Logo & Store Title */}
@@ -105,14 +96,9 @@ export default function Navbar() {
               </div>
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors">
-                  MÁY ẢNH TOP 1
-                </span>
-                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-300">
-                  SÀI GÒN
-                </span>
-              </div>
+              <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors">
+                MÁY ẢNH TOP 1
+              </span>
               <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
                 Chuyên máy ảnh cũ &amp; phụ kiện uy tín
               </span>

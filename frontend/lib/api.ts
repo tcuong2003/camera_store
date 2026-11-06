@@ -109,13 +109,19 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
       filtered.sort((a, b) => b.price - a.price);
     }
 
+    const pageNum = params.page || 1;
+    const limitNum = params.limit || 16;
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limitNum) || 1;
+    const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
     return {
       success: true,
-      count: filtered.length,
-      total: filtered.length,
-      totalPages: 1,
-      currentPage: 1,
-      products: filtered,
+      count: paginated.length,
+      total,
+      totalPages,
+      currentPage: pageNum,
+      products: paginated,
     };
   }
 };

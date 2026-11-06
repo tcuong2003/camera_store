@@ -27,7 +27,7 @@ const getProducts = async (req, res) => {
       isAvailable,
       sort,
       page = 1,
-      limit = 24,
+      limit = 16,
     } = req.query;
 
     if (!isDbConnected()) {
@@ -78,7 +78,7 @@ const getProducts = async (req, res) => {
 
       const total = filtered.length;
       const pageNum = parseInt(page, 10) || 1;
-      const limitNum = parseInt(limit, 10) || 24;
+      const limitNum = parseInt(limit, 10) || 16;
       const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
       return res.status(200).json({
