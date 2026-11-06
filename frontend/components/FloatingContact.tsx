@@ -1,11 +1,18 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { Phone, MessageSquare, ChevronUp } from 'lucide-react';
 
 export default function FloatingContact() {
+  const pathname = usePathname();
   const hotline = '0986834449';
   const zaloUrl = `https://zalo.me/${hotline}`;
+
+  // Hide customer floating buttons on admin pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

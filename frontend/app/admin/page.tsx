@@ -18,6 +18,10 @@ import {
   PackageX,
   X,
   ExternalLink,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   adminLogin,
@@ -49,6 +53,14 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+
+  // Admin filter and search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBrand, setFilterBrand] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'sold'>('all');
+  const [adminPage, setAdminPage] = useState(1);
+  const pageSize = 15;
 
   // Form fields
   const [name, setName] = useState('');
@@ -202,6 +214,17 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
+  // Toggle availability inline
+  const handleToggleAvailability = async (p: Product) => {
+    const updatedStatus = !p.isAvailable;
+    try {
+      await adminUpdateProduct(p._id, { isAvailable: updatedStatus }, token || '');
+      setProducts(products.map((item) => (item._id === p._id ? { ...item, isAvailable: updatedStatus } : item)));
+    } catch (err) {
+      setProducts(products.map((item) => (item._id === p._id ? { ...item, isAvailable: updatedStatus } : item)));
+    }
+  };
+
   // Drag and Drop Upload Handler
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -346,7 +369,7 @@ export default function AdminPage() {
 
   // Delete product
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa máy ảnh "${name}"?`)) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}" khỏi kho?`)) return;
 
     try {
       await adminDeleteProduct(id, token || '');
@@ -371,6 +394,40 @@ export default function AdminPage() {
   const handleDeleteCategory = (index: number) => {
     setCategories(categories.filter((_, idx) => idx !== index));
   };
+
+  // Filtering products for the admin table
+  const filteredProducts = products.filter((p) => {
+    if (searchTerm.trim()) {
+      const s = searchTerm.toLowerCase();
+      const match =
+        p.name.toLowerCase().includes(s) ||
+        p.brand.toLowerCase().includes(s) ||
+        (p.condition && p.condition.toLowerCase().includes(s)) ||
+        (p.slug && p.slug.toLowerCase().includes(s));
+      if (!match) return false;
+    }
+    if (filterBrand !== 'all' && p.brand.toLowerCase() !== filterBrand.toLowerCase()) {
+      return false;
+    }
+    if (filterCategory !== 'all' && p.category !== filterCategory) {
+      return false;
+    }
+    if (filterStatus === 'available' && !p.isAvailable) return false;
+    if (filterStatus === 'sold' && p.isAvailable) return false;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filteredProducts.length / pageSize) || 1;
+  const paginatedProducts = filteredProducts.slice((adminPage - 1) * pageSize, adminPage * pageSize);
+
+  // Statistics
+  const totalCount = products.length;
+  const availableCount = products.filter((p) => p.isAvailable).length;
+  const soldCount = totalCount - availableCount;
+  const brandCount = new Set(products.map((p) => p.brand)).size;
+
+  // Distinct brand list for filtering
+  const allBrands = Array.from(new Set(products.map((p) => p.brand))).filter(Boolean);
 
   // If not logged in, render Admin Login screen
   if (!token) {
@@ -440,21 +497,16 @@ export default function AdminPage() {
     );
   }
 
-  // Statistics
-  const totalCount = products.length;
-  const availableCount = products.filter((p) => p.isAvailable).length;
-  const soldCount = totalCount - availableCount;
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Admin Dashboard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-300 font-bold">
+            <span className="text-xs uppercase font-mono px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300 font-bold">
               Admin Portal
             </span>
-            <span className="text-xs text-slate-400">sp.mayanhtop1.com</span>
+            <span className="text-xs text-slate-400 font-mono">sp.mayanhtop1.com</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
             Bảng Điều Khiển Danh Mục Máy Ảnh
@@ -464,15 +516,17 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm"
+            target="_blank"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-xs transition-colors"
           >
             <Eye className="w-4 h-4 text-slate-500" />
             <span>Xem trang khách</span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
           </Link>
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold border border-rose-200 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs sm:text-sm font-semibold border border-rose-200 transition-colors shadow-xs"
           >
             <LogOut className="w-4 h-4" />
             <span>Đăng xuất ({adminUser})</span>
@@ -481,38 +535,50 @@ export default function AdminPage() {
       </div>
 
       {/* Quick Stats Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-xs font-medium">Tổng máy ảnh</span>
-            <Camera className="w-4 h-4 text-amber-500" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Products */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng máy ảnh</span>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono mt-1">{totalCount}</div>
           </div>
-          <div className="text-2xl font-black text-slate-900 font-mono">{totalCount}</div>
+          <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+            <Camera className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-xs font-medium">Đang sẵn hàng</span>
-            <PackageCheck className="w-4 h-4 text-emerald-500" />
+        {/* Available */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đang sẵn hàng</span>
+            <div className="text-2xl sm:text-3xl font-black text-emerald-600 font-mono mt-1">{availableCount}</div>
           </div>
-          <div className="text-2xl font-black text-emerald-600 font-mono">{availableCount}</div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+            <PackageCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-xs font-medium">Đã bán</span>
-            <PackageX className="w-4 h-4 text-rose-500" />
+        {/* Sold */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đã chốt bán</span>
+            <div className="text-2xl sm:text-3xl font-black text-slate-400 font-mono mt-1">{soldCount}</div>
           </div>
-          <div className="text-2xl font-black text-rose-600 font-mono">{soldCount}</div>
+          <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+            <PackageX className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-xs font-medium">Thương hiệu</span>
-            <SlidersHorizontal className="w-4 h-4 text-amber-500" />
+        {/* Brands Count */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thương hiệu</span>
+            <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono mt-1">
+              {brandCount} <span className="text-sm font-normal text-slate-500">hãng</span>
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-800 font-mono">
-            {new Set(products.map((p) => p.brand)).size} hãng
+          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+            <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
@@ -520,21 +586,24 @@ export default function AdminPage() {
       {/* Tabs: Products vs Categories */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveTab('products')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+          onClick={() => {
+            setActiveTab('products');
+            setAdminPage(1);
+          }}
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'products'
-              ? 'bg-amber-500 text-white shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
+              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           Quản lý Máy ảnh ({products.length})
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'categories'
-              ? 'bg-amber-500 text-white shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
+              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           Nhãn Phân loại &amp; Hãng ({categories.length})
@@ -544,101 +613,287 @@ export default function AdminPage() {
       {/* PRODUCT MANAGEMENT TAB */}
       {activeTab === 'products' && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-slate-900">Danh sách Máy ảnh trong kho</h2>
-            <button
-              onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-sm transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm Máy Ảnh Mới</span>
-            </button>
+          {/* Action & Filter Toolbar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+              {/* Search input */}
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm máy theo tên, model, hãng, tình trạng..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setAdminPage(1);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setAdminPage(1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters & Add Button */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Brand Filter */}
+                <select
+                  value={filterBrand}
+                  onChange={(e) => {
+                    setFilterBrand(e.target.value);
+                    setAdminPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                >
+                  <option value="all">Tất cả hãng</option>
+                  {allBrands.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Category Filter */}
+                <select
+                  value={filterCategory}
+                  onChange={(e) => {
+                    setFilterCategory(e.target.value);
+                    setAdminPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                >
+                  <option value="all">Tất cả danh mục</option>
+                  <option value="may-anh-cu">Máy ảnh cũ</option>
+                  <option value="may-anh-chinh-hang">Máy ảnh chính hãng</option>
+                  <option value="ong-kinh">Ống kính (Lens)</option>
+                  <option value="phu-kien">Phụ kiện máy ảnh</option>
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={filterStatus}
+                  onChange={(e) => {
+                    setFilterStatus(e.target.value as any);
+                    setAdminPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="available">Đang sẵn hàng</option>
+                  <option value="sold">Đã bán</option>
+                </select>
+
+                {/* Add New Button */}
+                <button
+                  onClick={handleOpenCreate}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-95 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm Máy Mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter result feedback */}
+            {(searchTerm || filterBrand !== 'all' || filterCategory !== 'all' || filterStatus !== 'all') && (
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                <span>
+                  Tìm thấy <strong className="text-slate-800">{filteredProducts.length}</strong> sản phẩm phù hợp
+                </span>
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterBrand('all');
+                    setFilterCategory('all');
+                    setFilterStatus('all');
+                    setAdminPage(1);
+                  }}
+                  className="text-amber-600 hover:underline font-semibold"
+                >
+                  Xóa bộ lọc
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Product Table */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-semibold border-b border-slate-200">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Ảnh &amp; Tên máy</th>
-                    <th className="py-3 px-4">Hãng</th>
-                    <th className="py-3 px-4">Giá bán</th>
-                    <th className="py-3 px-4">Tình trạng</th>
-                    <th className="py-3 px-4">Kho ảnh</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4 text-right">Thao tác</th>
+                    <th className="py-3.5 px-4">Ảnh &amp; Tên sản phẩm</th>
+                    <th className="py-3.5 px-4">Hãng</th>
+                    <th className="py-3.5 px-4">Giá bán</th>
+                    <th className="py-3.5 px-4">Tình trạng</th>
+                    <th className="py-3.5 px-4">Kho ảnh</th>
+                    <th className="py-3.5 px-4">Trạng thái</th>
+                    <th className="py-3.5 px-4 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {products.map((p) => (
-                    <tr key={p._id || p.slug} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={p.images?.[0] || 'https://via.placeholder.com/80'}
-                            alt={p.name}
-                            className="w-12 h-12 rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
-                          />
-                          <div>
-                            <Link
-                              href={`/san-pham/${p.slug}`}
-                              target="_blank"
-                              className="font-bold text-slate-900 hover:text-amber-600 line-clamp-1 flex items-center gap-1"
-                            >
-                              <span>{p.name}</span>
-                              <ExternalLink className="w-3 h-3 text-slate-400" />
-                            </Link>
-                            <span className="text-[11px] text-slate-400">{p.slug}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-amber-700">{p.brand}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                        {formatVND(p.price)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs border border-slate-200">
-                          {p.condition}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-xs font-mono text-slate-500">
-                        {p.images?.length || 0} ảnh
-                      </td>
-                      <td className="py-3 px-4">
-                        {p.isAvailable ? (
-                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                            Đang bán
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-xs font-semibold border border-rose-200">
-                            Đã bán
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenEdit(p)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
-                            title="Sửa sản phẩm"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(p._id, p.name)}
-                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600"
-                            title="Xóa sản phẩm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                  {paginatedProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                        Không tìm thấy sản phẩm nào phù hợp với bộ lọc.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    paginatedProducts.map((p) => (
+                      <tr key={p._id || p.slug} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={p.images?.[0] || 'https://via.placeholder.com/80'}
+                              alt={p.name}
+                              className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200 shadow-2xs"
+                            />
+                            <div className="min-w-0 max-w-[280px] sm:max-w-sm">
+                              <Link
+                                href={`/san-pham/${p.slug}`}
+                                target="_blank"
+                                className="font-bold text-slate-900 hover:text-amber-600 line-clamp-1 flex items-center gap-1.5 transition-colors"
+                              >
+                                <span>{p.name}</span>
+                                <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                              </Link>
+                              <span className="text-[11px] text-slate-400 font-mono truncate block">{p.slug}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 whitespace-nowrap">
+                            {p.brand}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-amber-600 whitespace-nowrap text-sm">
+                          {formatVND(p.price)}
+                        </td>
+                        <td className="py-3.5 px-4 max-w-[200px]">
+                          <span className="text-xs text-slate-600 line-clamp-2" title={p.condition}>
+                            {p.condition}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-xs font-mono text-slate-500 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
+                            {p.images?.length || 0} ảnh
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAvailability(p)}
+                            title="Bấm để đổi trạng thái Đang bán / Đã bán"
+                            className={`px-2.5 py-1 rounded-full text-xs font-bold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
+                              p.isAvailable
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                p.isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                              }`}
+                            ></span>
+                            <span>{p.isAvailable ? 'Đang bán' : 'Đã bán'}</span>
+                          </button>
+                        </td>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(p)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 hover:text-white text-slate-600 transition-colors shadow-2xs"
+                              title="Sửa thông tin & ảnh máy"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(p._id, p.name)}
+                              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition-colors shadow-2xs"
+                              title="Xóa máy khỏi kho"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Admin Table Pagination */}
+            {totalPages > 1 && (
+              <div className="px-4 py-3.5 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div>
+                  Hiển thị{' '}
+                  <strong className="text-slate-800">
+                    {(adminPage - 1) * pageSize + 1} - {Math.min(adminPage * pageSize, filteredProducts.length)}
+                  </strong>{' '}
+                  trên tổng số <strong className="text-slate-800">{filteredProducts.length}</strong> máy
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setAdminPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={adminPage === 1}
+                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs"
+                    title="Trang trước"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {Array.from({ length: totalPages }).map((_, idx) => {
+                    const pageNum = idx + 1;
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalPages ||
+                      (pageNum >= adminPage - 1 && pageNum <= adminPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setAdminPage(pageNum)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                            adminPage === pageNum
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    }
+                    if (pageNum === adminPage - 2 || pageNum === adminPage + 2) {
+                      return (
+                        <span key={pageNum} className="px-1 text-slate-400">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+
+                  <button
+                    onClick={() => setAdminPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={adminPage === totalPages}
+                    className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 shadow-2xs"
+                    title="Trang sau"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -646,7 +901,7 @@ export default function AdminPage() {
       {/* CATEGORIES MANAGEMENT TAB */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
             <h3 className="font-bold text-slate-900 text-base">Thêm nhãn phân loại mới</h3>
             <div className="flex flex-wrap gap-3 items-center">
               <input
@@ -654,12 +909,12 @@ export default function AdminPage() {
                 placeholder="Tên nhãn (Ví dụ: Leica, Dưới 2 triệu, Flycam...)"
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
-                className="flex-1 min-w-[200px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:bg-white"
+                className="flex-1 min-w-[200px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
               />
               <select
                 value={newCatType}
                 onChange={(e) => setNewCatType(e.target.value as any)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2"
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
                 <option value="brand">Thương hiệu (Brand)</option>
                 <option value="price">Tầm giá (Price)</option>
@@ -668,26 +923,29 @@ export default function AdminPage() {
               </select>
               <button
                 onClick={handleAddCategory}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-sm"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xs transition-all active:scale-95"
               >
                 Thêm Nhãn
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {categories.map((c, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 shadow-sm"
+                className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-colors"
               >
                 <div>
-                  <h4 className="font-bold text-slate-800 text-sm">{c.name}</h4>
-                  <span className="text-[11px] font-mono text-slate-400 uppercase">{c.type}</span>
+                  <h4 className="font-bold text-slate-900 text-sm">{c.name}</h4>
+                  <span className="text-[11px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded uppercase font-semibold">
+                    {c.type}
+                  </span>
                 </div>
                 <button
                   onClick={() => handleDeleteCategory(idx)}
-                  className="p-1 text-slate-400 hover:text-rose-600"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                  title="Xóa nhãn"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -699,16 +957,16 @@ export default function AdminPage() {
 
       {/* CREATE / EDIT PRODUCT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
               <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
                 {modalMode === 'create' ? 'Thêm Máy Ảnh Mới Vào Kho' : `Chỉnh Sửa: ${name}`}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -771,7 +1029,7 @@ export default function AdminPage() {
                   <select
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
                   >
                     <option value="Sony">Sony</option>
                     <option value="Canon">Canon</option>
@@ -781,6 +1039,12 @@ export default function AdminPage() {
                     <option value="Olympus">Olympus</option>
                     <option value="Ricoh">Ricoh</option>
                     <option value="Casio">Casio</option>
+                    <option value="Leica">Leica</option>
+                    <option value="Sigma">Sigma</option>
+                    <option value="Tamron">Tamron</option>
+                    <option value="Kingma">Kingma</option>
+                    <option value="SanDisk">SanDisk</option>
+                    <option value="Khác">Khác</option>
                   </select>
                 </div>
 
@@ -791,7 +1055,7 @@ export default function AdminPage() {
                   <select
                     value={priceCategory}
                     onChange={(e) => setPriceCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
                   >
                     <option value="under_3m">Dưới 3.000.000 đ</option>
                     <option value="3m_5m">Từ 3 - 5 triệu</option>
@@ -802,19 +1066,37 @@ export default function AdminPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Định dạng máy
+                    Phân loại danh mục *
                   </label>
                   <select
-                    value={deviceType}
-                    onChange={(e) => setDeviceType(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
                   >
-                    <option value="Mirrorless">Mirrorless</option>
-                    <option value="DSLR">DSLR</option>
-                    <option value="Compact">Compact / Y2K</option>
-                    <option value="Lens">Ống kính (Lens)</option>
+                    <option value="may-anh-cu">Máy ảnh cũ</option>
+                    <option value="may-anh-chinh-hang">Máy ảnh chính hãng</option>
+                    <option value="ong-kinh">Ống kính (Lens)</option>
+                    <option value="phu-kien">Phụ kiện máy ảnh</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Device Type */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Định dạng thiết bị
+                </label>
+                <select
+                  value={deviceType}
+                  onChange={(e) => setDeviceType(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                >
+                  <option value="Mirrorless">Mirrorless</option>
+                  <option value="DSLR">DSLR</option>
+                  <option value="Compact">Compact / Y2K</option>
+                  <option value="Lens">Ống kính (Lens)</option>
+                  <option value="Accessory">Phụ kiện máy ảnh</option>
+                </select>
               </div>
 
               {/* Condition & Warranty */}
@@ -829,7 +1111,7 @@ export default function AdminPage() {
                     placeholder="VD: Ngoại hình 99% Likenew - Sensor sạch bong"
                     value={condition}
                     onChange={(e) => setCondition(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
@@ -841,7 +1123,7 @@ export default function AdminPage() {
                     type="text"
                     value={warranty}
                     onChange={(e) => setWarranty(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -849,30 +1131,29 @@ export default function AdminPage() {
               {/* Accessories */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Phụ kiện đi kèm
+                  Phụ kiện đi kèm theo máy
                 </label>
                 <input
                   type="text"
-                  placeholder="Pin zin, Sạc rời, Dây đeo, Tặng kèm thẻ nhớ 32GB, Túi máy ảnh..."
+                  placeholder="Pin zin, sạc rời, dây đeo, nắp che body/lens, thẻ nhớ..."
                   value={accessories}
                   onChange={(e) => setAccessories(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
-              {/* MULTI-IMAGE UPLOAD (Drag & Drop zone + Cloudinary progress) */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <ImageIcon className="w-4 h-4 text-amber-500" />
-                    <span>Kho ảnh tự chụp ({images.length}/15 ảnh) *</span>
+              {/* Multi-image Upload to Cloudinary API */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Album ảnh ngoại hình tự chụp (tối đa 15 ảnh) *
                   </label>
                   <button
                     type="button"
                     onClick={addImageUrlManually}
-                    className="text-xs text-amber-600 hover:underline font-semibold"
+                    className="text-xs text-amber-600 hover:text-amber-700 font-bold hover:underline"
                   >
-                    + Thêm URL ảnh trực tiếp
+                    + Nhập link ảnh trực tiếp
                   </button>
                 </div>
 
@@ -883,10 +1164,10 @@ export default function AdminPage() {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors ${
                     dragActive
                       ? 'border-amber-500 bg-amber-50'
-                      : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100'
+                      : 'border-amber-300 bg-amber-50/40 hover:bg-amber-50/80'
                   }`}
                 >
                   <input
@@ -897,42 +1178,42 @@ export default function AdminPage() {
                     onChange={handleFileInput}
                     className="hidden"
                   />
-                  <Upload className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                  <Upload className="w-8 h-8 mx-auto text-amber-600 mb-2" />
                   <p className="text-sm font-bold text-slate-800">
-                    Kéo thả tối đa 10 - 15 ảnh ngoại hình máy ảnh vào đây
+                    Kéo &amp; thả 5 - 10 ảnh vào đây, hoặc <span className="text-amber-600 underline">bấm chọn ảnh</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Hoặc bấm để chọn ảnh từ máy tính (Hỗ trợ JPG, PNG, WEBP, tối đa 15MB/ảnh)
+                    Hỗ trợ JPG, PNG, WEBP tự động nén &amp; tải lên Cloudinary API
                   </p>
                 </div>
 
-                {/* Progress bar if uploading */}
+                {/* Upload Progress Bar */}
                 {uploadingImages && (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex justify-between text-xs text-amber-600 font-mono">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-amber-600 font-semibold">
                       <span>Đang tải ảnh lên Cloudinary...</span>
                       <span>{uploadProgress}%</span>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-amber-500 h-2 transition-all duration-300 rounded-full"
+                        className="bg-amber-500 h-full transition-all duration-300"
                         style={{ width: `${uploadProgress}%` }}
-                      />
+                      ></div>
                     </div>
                   </div>
                 )}
 
-                {/* Thumbnail list with remove button */}
+                {/* Image Previews Grid */}
                 {images.length > 0 && (
-                  <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 pt-2">
                     {images.map((imgUrl, idx) => (
                       <div
                         key={idx}
-                        className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group shadow-sm"
+                        className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group shadow-2xs"
                       >
                         <img
                           src={imgUrl}
-                          alt={`Uploaded ${idx + 1}`}
+                          alt={`Ảnh ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
                         <button
@@ -942,8 +1223,8 @@ export default function AdminPage() {
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
-                        <span className="absolute bottom-1 left-1 text-[9px] font-mono bg-slate-900/80 text-white px-1 rounded">
-                          #{idx + 1}
+                        <span className="absolute bottom-1 left-1 text-[9px] font-mono bg-slate-900/80 text-white px-1.5 py-0.5 rounded">
+                          {idx === 0 ? 'Đại diện' : `#${idx + 1}`}
                         </span>
                       </div>
                     ))}
@@ -966,7 +1247,7 @@ export default function AdminPage() {
               </div>
 
               {/* Availability & Featured Checkboxes */}
-              <div className="flex items-center gap-6 pt-2">
+              <div className="flex flex-wrap items-center gap-6 pt-2">
                 <label className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
@@ -993,13 +1274,13 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-md active:scale-95 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-xs active:scale-95 transition-all"
                 >
                   {modalMode === 'create' ? 'Tạo Sản Phẩm Mới' : 'Lưu Thay Đổi'}
                 </button>
