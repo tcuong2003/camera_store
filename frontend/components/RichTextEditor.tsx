@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Bold,
   Italic,
@@ -13,8 +13,6 @@ import {
   Table as TableIcon,
   Sparkles,
   Minus,
-  Code,
-  Eye,
   RotateCcw,
 } from 'lucide-react';
 
@@ -32,8 +30,6 @@ export default function RichTextEditor({
   minHeight = '220px',
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isHtmlMode, setIsHtmlMode] = useState(false);
-  const [htmlContent, setHtmlContent] = useState(value || '');
   
   // Track last HTML emitted by the editor to prevent cursor-jumping feedback loops
   const lastEmittedHtmlRef = useRef<string>(value || '');
@@ -42,16 +38,15 @@ export default function RichTextEditor({
   useEffect(() => {
     if (value !== lastEmittedHtmlRef.current) {
       lastEmittedHtmlRef.current = value || '';
-      setHtmlContent(value || '');
-      if (editorRef.current && !isHtmlMode) {
+      if (editorRef.current) {
         editorRef.current.innerHTML = value || '';
       }
     }
-  }, [value, isHtmlMode]);
+  }, [value]);
 
   // Set initial content on mount
   useEffect(() => {
-    if (editorRef.current && !isHtmlMode) {
+    if (editorRef.current) {
       editorRef.current.innerHTML = value || '';
       lastEmittedHtmlRef.current = value || '';
     }
@@ -62,7 +57,6 @@ export default function RichTextEditor({
     if (editorRef.current) {
       const currentHtml = editorRef.current.innerHTML;
       lastEmittedHtmlRef.current = currentHtml;
-      setHtmlContent(currentHtml);
       onChange(currentHtml);
     }
   };
@@ -72,35 +66,6 @@ export default function RichTextEditor({
       editorRef.current.focus();
       document.execCommand(command, false, arg);
       handleInput();
-    }
-  };
-
-  const handleHtmlInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newHtml = e.target.value;
-    lastEmittedHtmlRef.current = newHtml;
-    setHtmlContent(newHtml);
-    onChange(newHtml);
-    if (editorRef.current) {
-      editorRef.current.innerHTML = newHtml;
-    }
-  };
-
-  const toggleHtmlMode = () => {
-    if (isHtmlMode) {
-      // Switching from HTML code to visual mode
-      setIsHtmlMode(false);
-      setTimeout(() => {
-        if (editorRef.current) {
-          editorRef.current.innerHTML = htmlContent;
-          lastEmittedHtmlRef.current = htmlContent;
-        }
-      }, 0);
-    } else {
-      // Switching from visual mode to HTML code
-      const currentHtml = editorRef.current ? editorRef.current.innerHTML : htmlContent;
-      setHtmlContent(currentHtml);
-      lastEmittedHtmlRef.current = currentHtml;
-      setIsHtmlMode(true);
     }
   };
 
@@ -174,7 +139,7 @@ export default function RichTextEditor({
     return stripped.length === 0;
   };
 
-  const showPlaceholder = !isHtmlMode && isContentEmpty(htmlContent);
+  const showPlaceholder = isContentEmpty(lastEmittedHtmlRef.current);
 
   return (
     <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-amber-500/30 focus-within:border-amber-500 transition-all">
@@ -293,21 +258,6 @@ export default function RichTextEditor({
         >
           <RotateCcw className="w-4 h-4" />
         </button>
-
-        {/* HTML / Visual Toggle */}
-        <button
-          type="button"
-          onClick={toggleHtmlMode}
-          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
-            isHtmlMode
-              ? 'bg-amber-500 text-white'
-              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-          }`}
-          title="Chuyển đổi giữa chế độ Soạn thảo Word và Mã HTML"
-        >
-          {isHtmlMode ? <Eye className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5" />}
-          <span>{isHtmlMode ? 'Soạn thảo Word' : 'Xem HTML'}</span>
-        </button>
       </div>
 
       {/* Editor Body Area */}
@@ -321,25 +271,15 @@ export default function RichTextEditor({
           </div>
         )}
 
-        {isHtmlMode ? (
-          <textarea
-            value={htmlContent}
-            onChange={handleHtmlInputChange}
-            placeholder="Chỉnh sửa mã nguồn HTML chuẩn..."
-            className="w-full p-4 font-mono text-xs text-slate-800 bg-slate-50/50 focus:outline-none resize-y"
-            style={{ minHeight }}
-          />
-        ) : (
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleInput}
-            onBlur={handleInput}
-            className="p-4 focus:outline-none text-sm text-slate-900 leading-relaxed overflow-y-auto prose prose-slate max-w-none"
-            style={{ minHeight }}
-          />
-        )}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onBlur={handleInput}
+          className="p-4 focus:outline-none text-sm text-slate-900 leading-relaxed overflow-y-auto prose prose-slate max-w-none"
+          style={{ minHeight }}
+        />
       </div>
     </div>
   );

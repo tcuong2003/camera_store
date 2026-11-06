@@ -147,15 +147,6 @@ export default function Navbar() {
               <MessageSquare className="w-4 h-4" />
               <span>Chat Zalo</span>
             </a>
-
-            {/* Admin entry link */}
-            <Link
-              href="/admin"
-              className="px-2.5 py-2 text-slate-500 hover:text-amber-600 text-xs font-medium rounded-lg hover:bg-slate-100 transition-colors"
-              title="Khu vực Quản trị"
-            >
-              Admin
-            </Link>
           </div>
         </div>
 

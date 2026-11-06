@@ -630,7 +630,6 @@ export default function AdminPage() {
             <span className="text-xs uppercase font-mono px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300 font-bold">
               Admin Portal
             </span>
-            <span className="text-xs text-slate-400 font-mono">sp.mayanhtop1.com</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
             Bảng Điều Khiển Danh Mục Máy Ảnh
@@ -663,8 +662,8 @@ export default function AdminPage() {
         {/* Total Products */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng máy ảnh</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono mt-1">{totalCount}</div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng máy ảnh</span>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">{totalCount}</div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
             <Camera className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -674,8 +673,8 @@ export default function AdminPage() {
         {/* Available */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đang sẵn hàng</span>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-600 font-mono mt-1">{availableCount}</div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đang sẵn hàng</span>
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight mt-1">{availableCount}</div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
             <PackageCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -685,8 +684,8 @@ export default function AdminPage() {
         {/* Sold */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đã chốt bán</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-400 font-mono mt-1">{soldCount}</div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đã chốt bán</span>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-500 tracking-tight mt-1">{soldCount}</div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
             <PackageX className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -696,9 +695,9 @@ export default function AdminPage() {
         {/* Brands Count */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Thương hiệu</span>
-            <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono mt-1">
-              {brandCount} <span className="text-sm font-normal text-slate-500">hãng</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Thương hiệu</span>
+            <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 tracking-tight mt-1">
+              {brandCount} <span className="text-sm font-semibold text-slate-500">hãng</span>
             </div>
           </div>
           <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
@@ -707,36 +706,8 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs: Products vs Categories */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => {
-            setActiveTab('products');
-            setAdminPage(1);
-          }}
-          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-            activeTab === 'products'
-              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
-              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          Quản lý Máy ảnh ({products.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-            activeTab === 'categories'
-              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
-              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          Nhãn Phân loại &amp; Hãng ({categories.length})
-        </button>
-      </div>
-
-      {/* PRODUCT MANAGEMENT TAB */}
-      {activeTab === 'products' && (
-        <div className="space-y-4">
+      {/* PRODUCT MANAGEMENT */}
+      <div className="space-y-4">
           {/* Action & Filter Toolbar */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
@@ -840,7 +811,6 @@ export default function AdminPage() {
                     <th className="py-3.5 px-4">Ảnh &amp; Tên sản phẩm</th>
                     <th className="py-3.5 px-4">Hãng</th>
                     <th className="py-3.5 px-4">Giá bán</th>
-                    <th className="py-3.5 px-4">Tình trạng</th>
                     <th className="py-3.5 px-4">Kho ảnh</th>
                     <th className="py-3.5 px-4">Trạng thái</th>
                     <th className="py-3.5 px-4 text-right">Thao tác</th>
@@ -849,7 +819,7 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {paginatedProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
                         Không tìm thấy sản phẩm nào phù hợp với bộ lọc.
                       </td>
                     </tr>
@@ -867,12 +837,11 @@ export default function AdminPage() {
                               <Link
                                 href={`/san-pham/${p.slug}`}
                                 target="_blank"
-                                className="font-bold text-slate-900 hover:text-amber-600 line-clamp-1 flex items-center gap-1.5 transition-colors"
+                                className="font-bold text-slate-900 hover:text-amber-600 line-clamp-2 flex items-center gap-1.5 transition-colors"
                               >
                                 <span>{p.name}</span>
                                 <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
                               </Link>
-                              <span className="text-[11px] text-slate-400 font-mono truncate block">{p.slug}</span>
                             </div>
                           </div>
                         </td>
@@ -884,11 +853,6 @@ export default function AdminPage() {
                         {/* Price formatted CellphoneS style (bold red with dots) */}
                         <td className="py-3.5 px-4 font-extrabold text-red-600 whitespace-nowrap text-sm sm:text-base tracking-tight">
                           {formatVND(p.price)}
-                        </td>
-                        <td className="py-3.5 px-4 max-w-[200px]">
-                          <span className="text-xs text-slate-600 line-clamp-2" title={p.condition}>
-                            {p.condition}
-                          </span>
                         </td>
                         <td className="py-3.5 px-4 text-xs font-mono text-slate-500 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
@@ -1004,60 +968,6 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-      )}
-
-      {/* CATEGORIES MANAGEMENT TAB */}
-      {activeTab === 'categories' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-            <h3 className="font-bold text-slate-900 text-base">Thêm nhãn phân loại mới</h3>
-            <div className="flex flex-wrap gap-3 items-center">
-              <input
-                type="text"
-                placeholder="Tên nhãn (Ví dụ: Leica, Dưới 2 triệu, Flycam...)"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                className="flex-1 min-w-[200px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-              />
-              <CustomDropdown
-                options={catTypeOptions}
-                value={newCatType}
-                onChange={(v) => setNewCatType(v as any)}
-                className="min-w-[190px]"
-              />
-              <button
-                onClick={handleAddCategory}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-sm shadow-xs transition-all active:scale-95 cursor-pointer"
-              >
-                Thêm Nhãn
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {categories.map((c, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-colors"
-              >
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{c.name}</h4>
-                  <span className="text-[11px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded uppercase font-semibold">
-                    {c.type}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleDeleteCategory(idx)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                  title="Xóa nhãn"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* CREATE / EDIT PRODUCT MODAL */}
       {isModalOpen && (
