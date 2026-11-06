@@ -1,6 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
-import { Camera, Phone, MessageSquare, MapPin } from 'lucide-react';
+import { Phone, MessageSquare, MapPin } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -21,9 +20,6 @@ export default function Footer() {
             <p className="text-xs text-slate-500 leading-relaxed">
               Thương hiệu chuyên cung cấp các dòng máy ảnh cũ, máy ảnh lướt chọn lọc, ống kính và phụ kiện chính hãng tại Sài Gòn. Uy tín, trách nhiệm và hỗ trợ kỹ thuật tận tâm cho cộng đồng nhiếp ảnh.
             </p>
-            <div className="text-xs text-amber-600 font-mono font-semibold">
-              Website: sp.mayanhtop1.com
-            </div>
           </div>
 
           {/* Contact Direct */}
@@ -46,9 +42,14 @@ export default function Footer() {
                 <MessageSquare className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>Zalo tư vấn &amp; gửi ảnh: <strong className="text-slate-900 font-mono">0986.834.449</strong></span>
               </a>
-              <div className="flex items-start gap-2 text-slate-500">
+              <div className="flex items-start gap-2 text-slate-600">
                 <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <span>Địa chỉ giao dịch &amp; test máy trực tiếp tại TP. Hồ Chí Minh (Sài Gòn)</span>
+                <span>
+                  Địa chỉ xem &amp; test máy trực tiếp:{' '}
+                  <strong className="text-slate-800">
+                    38/49 Nguyễn Công Hoan, Phường 7, Quận Phú Nhuận, TP. Hồ Chí Minh
+                  </strong>
+                </span>
               </div>
             </div>
           </div>
@@ -68,11 +69,6 @@ export default function Footer() {
         {/* Bottom copyright */}
         <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
           <p>© {new Date().getFullYear()} MÁY ẢNH TOP 1 - Chuyên máy ảnh cũ Sài Gòn. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="hover:text-slate-700 transition-colors">
-              Đăng nhập Quản trị
-            </Link>
-          </div>
         </div>
       </div>
     </footer>

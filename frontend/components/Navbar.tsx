@@ -106,7 +106,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Search Bar wrapped in Suspense */}
-          <div className="hidden md:flex flex-1 max-w-md mx-6">
+          <div className="hidden md:flex flex-1 max-w-xl lg:max-w-2xl mx-4 sm:mx-6 lg:mx-8">
             <Suspense fallback={<div className="w-full h-10 bg-slate-100 rounded-full animate-pulse" />}>
               <SearchInput />
             </Suspense>

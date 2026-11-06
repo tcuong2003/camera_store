@@ -805,15 +805,15 @@ export default function AdminPage() {
           {/* Product Table */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
+              <table className="w-full text-xs sm:text-sm">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
                   <tr>
-                    <th className="py-3.5 px-4">Ảnh &amp; Tên sản phẩm</th>
-                    <th className="py-3.5 px-4">Hãng</th>
-                    <th className="py-3.5 px-4">Giá bán</th>
-                    <th className="py-3.5 px-4">Kho ảnh</th>
-                    <th className="py-3.5 px-4">Trạng thái</th>
-                    <th className="py-3.5 px-4 text-right">Thao tác</th>
+                    <th className="py-3.5 px-4 text-left">Ảnh &amp; Tên sản phẩm</th>
+                    <th className="py-3.5 px-4 text-center">Hãng</th>
+                    <th className="py-3.5 px-4 text-center">Giá bán</th>
+                    <th className="py-3.5 px-4 text-center">Kho ảnh</th>
+                    <th className="py-3.5 px-4 text-center">Trạng thái</th>
+                    <th className="py-3.5 px-4 text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -826,7 +826,7 @@ export default function AdminPage() {
                   ) : (
                     paginatedProducts.map((p) => (
                       <tr key={p._id || p.slug} className="hover:bg-amber-50/30 transition-colors">
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 text-left">
                           <div className="flex items-center gap-3">
                             <img
                               src={p.images?.[0] || 'https://via.placeholder.com/80'}
@@ -845,21 +845,21 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 whitespace-nowrap inline-block">
                             {p.brand}
                           </span>
                         </td>
                         {/* Price formatted CellphoneS style (bold red with dots) */}
-                        <td className="py-3.5 px-4 font-extrabold text-red-600 whitespace-nowrap text-sm sm:text-base tracking-tight">
+                        <td className="py-3.5 px-4 text-center font-extrabold text-red-600 whitespace-nowrap text-sm sm:text-base tracking-tight">
                           {formatVND(p.price)}
                         </td>
-                        <td className="py-3.5 px-4 text-xs font-mono text-slate-500 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
+                        <td className="py-3.5 px-4 text-center text-xs font-mono text-slate-500 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 inline-block">
                             {p.images?.length || 0} ảnh
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => handleToggleAvailability(p)}
@@ -878,8 +878,8 @@ export default function AdminPage() {
                             <span>{p.isAvailable ? 'Đang bán' : 'Đã bán'}</span>
                           </button>
                         </td>
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleOpenEdit(p)}
                               className="p-2 rounded-xl bg-slate-100 hover:bg-amber-500 hover:text-white text-slate-600 transition-colors shadow-2xs cursor-pointer"
