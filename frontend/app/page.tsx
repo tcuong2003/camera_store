@@ -12,7 +12,7 @@ import ProductGrid from '../components/ProductGrid';
 import CustomDropdown from '../components/CustomDropdown';
 import Pagination from '../components/Pagination';
 import { fetchProducts } from '../lib/api';
-import { Product } from '../lib/mockData';
+import { Product, FALLBACK_PRODUCTS } from '../lib/mockData';
 import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 
 function CatalogContent() {
@@ -20,10 +20,10 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const catalogTopRef = useRef<HTMLDivElement>(null);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [products, setProducts] = useState<Product[]>(() => FALLBACK_PRODUCTS.slice(0, 16));
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState<number>(() => FALLBACK_PRODUCTS.length);
+  const [totalPages, setTotalPages] = useState<number>(() => Math.ceil(FALLBACK_PRODUCTS.length / 16));
 
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
