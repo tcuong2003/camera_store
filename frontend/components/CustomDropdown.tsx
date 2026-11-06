@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, X } from 'lucide-react';
 
 export interface DropdownOption {
   label: string;
@@ -18,6 +18,9 @@ interface CustomDropdownProps {
   fullWidth?: boolean;
   className?: string;
   buttonClassName?: string;
+  onAddNew?: (newValue: string) => void;
+  addNewLabel?: string;
+  addNewPlaceholder?: string;
 }
 
 export default function CustomDropdown({
@@ -30,9 +33,15 @@ export default function CustomDropdown({
   fullWidth = false,
   className = '',
   buttonClassName = '',
+  onAddNew,
+  addNewLabel = '+ Thêm mới...',
+  addNewPlaceholder = 'Nhập tên mới...',
 }: CustomDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newInputValue, setNewInputValue] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
@@ -42,12 +51,14 @@ export default function CustomDropdown({
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setIsAddingNew(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
+        setIsAddingNew(false);
       }
     };
 
@@ -62,9 +73,27 @@ export default function CustomDropdown({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isAddingNew && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isAddingNew]);
+
   const handleSelect = (val: string) => {
     onChange(val);
     setIsOpen(false);
+    setIsAddingNew(false);
+  };
+
+  const handleConfirmAddNew = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newInputValue.trim();
+    if (trimmed && onAddNew) {
+      onAddNew(trimmed);
+      setNewInputValue('');
+      setIsAddingNew(false);
+      setIsOpen(false);
+    }
   };
 
   return (
@@ -104,7 +133,58 @@ export default function CustomDropdown({
               : 'left-0 w-56 sm:w-64'
           } bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden`}
         >
-          <div className="max-h-64 overflow-y-auto scrollbar-thin py-0.5">
+          {/* Pinned top: Add New option */}
+          {onAddNew && (
+            <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+              {isAddingNew ? (
+                <div
+                  className="flex items-center gap-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newInputValue}
+                    onChange={(e) => setNewInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleConfirmAddNew();
+                      if (e.key === 'Escape') setIsAddingNew(false);
+                    }}
+                    placeholder={addNewPlaceholder}
+                    className="flex-1 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirmAddNew}
+                    className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0"
+                  >
+                    Lưu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNew(false)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAddingNew(true);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-100/60 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span>{addNewLabel}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto scrollbar-thin py-0.5">
             {options.map((option) => {
               const isSelected = option.value === value;
               return (

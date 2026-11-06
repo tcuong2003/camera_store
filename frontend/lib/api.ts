@@ -28,13 +28,11 @@ export interface SingleProductResponse {
   related?: Product[];
 }
 
-// Utility to format price in VNĐ
+// Utility to format price in VNĐ (CellphoneS style: 13.860.000đ)
 export const formatVND = (price: number): string => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(price);
+  if (price === undefined || price === null || isNaN(price)) return '0đ';
+  const formatted = new Intl.NumberFormat('vi-VN').format(price);
+  return `${formatted}đ`;
 };
 
 // Generate Zalo chat link

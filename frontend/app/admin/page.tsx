@@ -35,6 +35,7 @@ import {
 } from '../../lib/api';
 import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '../../lib/mockData';
 import CustomDropdown, { DropdownOption } from '../../components/CustomDropdown';
+import RichTextEditor from '../../components/RichTextEditor';
 
 export default function AdminPage() {
   // Auth state
@@ -66,12 +67,18 @@ export default function AdminPage() {
   // Form fields
   const [name, setName] = useState('');
   const [price, setPrice] = useState<number | ''>('');
+  const [displayPrice, setDisplayPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState<number | ''>('');
+  const [displayOriginalPrice, setDisplayOriginalPrice] = useState('');
   const [brand, setBrand] = useState('Sony');
   const [category, setCategory] = useState('may-anh-cu');
   const [description, setDescription] = useState('');
   const [isAvailable, setIsAvailable] = useState(true);
   const [featured, setFeatured] = useState(false);
+
+  // User-added custom brands & categories in dropdown
+  const [extraBrands, setExtraBrands] = useState<string[]>([]);
+  const [extraCategories, setExtraCategories] = useState<{ label: string; value: string }[]>([]);
 
   // Fallback / preserved internal fields
   const [condition, setCondition] = useState('Ngoại hình đẹp - Hoạt động hoàn hảo');
@@ -90,6 +97,17 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<'brand' | 'price' | 'category' | 'device_type'>('brand');
+
+  // Lock background body scroll when modal is open
+  useEffect(() => {
+    if (isModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isModalOpen]);
 
   // Load token from localStorage
   useEffect(() => {
@@ -174,13 +192,47 @@ export default function AdminPage() {
     setToken(null);
   };
 
+  // Helper to format numbers with dots (e.g. 7800000 -> 7.800.000)
+  const formatWithDots = (val: number | string) => {
+    if (!val && val !== 0) return '';
+    const clean = String(val).replace(/\D/g, '');
+    if (!clean) return '';
+    return new Intl.NumberFormat('vi-VN').format(Number(clean));
+  };
+
+  const handlePriceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (!raw) {
+      setPrice('');
+      setDisplayPrice('');
+      return;
+    }
+    const num = Number(raw);
+    setPrice(num);
+    setDisplayPrice(formatWithDots(num));
+  };
+
+  const handleOriginalPriceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (!raw) {
+      setOriginalPrice('');
+      setDisplayOriginalPrice('');
+      return;
+    }
+    const num = Number(raw);
+    setOriginalPrice(num);
+    setDisplayOriginalPrice(formatWithDots(num));
+  };
+
   // Open modal for new product
   const handleOpenCreate = () => {
     setModalMode('create');
     setEditingProduct(null);
     setName('');
     setPrice('');
+    setDisplayPrice('');
     setOriginalPrice('');
+    setDisplayOriginalPrice('');
     setBrand('Sony');
     setCategory('may-anh-cu');
     setDescription('');
@@ -200,7 +252,9 @@ export default function AdminPage() {
     setEditingProduct(p);
     setName(p.name);
     setPrice(p.price);
+    setDisplayPrice(p.price ? formatWithDots(p.price) : '');
     setOriginalPrice(p.originalPrice || '');
+    setDisplayOriginalPrice(p.originalPrice ? formatWithDots(p.originalPrice) : '');
     setBrand(p.brand);
     setCategory(p.category);
     setDescription(p.description || '');
@@ -436,10 +490,10 @@ export default function AdminPage() {
   const brandCount = new Set(products.map((p) => p.brand)).size;
 
   // Distinct brand list for filtering
-  const allBrands = Array.from(new Set(products.map((p) => p.brand))).filter(Boolean);
+  const allBrands = Array.from(new Set([...products.map((p) => p.brand), ...extraBrands])).filter(Boolean);
 
   // Options for CustomDropdowns
-  const brandOptions: DropdownOption[] = [
+  const baseBrandOptions: DropdownOption[] = [
     { label: 'Sony', value: 'Sony' },
     { label: 'Canon', value: 'Canon' },
     { label: 'Fujifilm', value: 'Fujifilm' },
@@ -456,11 +510,22 @@ export default function AdminPage() {
     { label: 'Khác', value: 'Khác' },
   ];
 
-  const categoryOptions: DropdownOption[] = [
+  // Merge extra user-added brands
+  const allBrandOptions: DropdownOption[] = [
+    ...extraBrands.map((b) => ({ label: b, value: b })),
+    ...baseBrandOptions.filter((opt) => !extraBrands.includes(opt.value)),
+  ];
+
+  const baseCategoryOptions: DropdownOption[] = [
     { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
     { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
     { label: 'Ống kính (Lens)', value: 'ong-kinh' },
     { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
+  ];
+
+  const allCategoryOptions: DropdownOption[] = [
+    ...extraCategories,
+    ...baseCategoryOptions.filter((opt) => !extraCategories.some((c) => c.value === opt.value)),
   ];
 
   const filterBrandOptions: DropdownOption[] = [
@@ -470,10 +535,7 @@ export default function AdminPage() {
 
   const filterCategoryOptions: DropdownOption[] = [
     { label: 'Tất cả danh mục', value: 'all' },
-    { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
-    { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
-    { label: 'Ống kính (Lens)', value: 'ong-kinh' },
-    { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
+    ...allCategoryOptions,
   ];
 
   const filterStatusOptions: DropdownOption[] = [
@@ -819,7 +881,8 @@ export default function AdminPage() {
                             {p.brand}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-amber-600 whitespace-nowrap text-sm">
+                        {/* Price formatted CellphoneS style (bold red with dots) */}
+                        <td className="py-3.5 px-4 font-extrabold text-red-600 whitespace-nowrap text-sm sm:text-base tracking-tight">
                           {formatVND(p.price)}
                         </td>
                         <td className="py-3.5 px-4 max-w-[200px]">
@@ -999,7 +1062,7 @@ export default function AdminPage() {
       {/* CREATE / EDIT PRODUCT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
               <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
@@ -1030,48 +1093,64 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Price & Original Price */}
+              {/* Price & Original Price with Realtime Dot Formatting and CellphoneS font */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Giá bán thực tế (VNĐ) *
                   </label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Ví dụ: 7800000"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ví dụ: 7.800.000"
+                      value={displayPrice}
+                      onChange={handlePriceInput}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-extrabold text-red-600 tracking-tight focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      đ
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Giá niêm yết cũ (nếu có giảm)
                   </label>
-                  <input
-                    type="number"
-                    placeholder="Ví dụ: 9500000"
-                    value={originalPrice}
-                    onChange={(e) =>
-                      setOriginalPrice(e.target.value === '' ? '' : Number(e.target.value))
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: 9.500.000"
+                      value={displayOriginalPrice}
+                      onChange={handleOriginalPriceInput}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-semibold text-slate-500 line-through focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      đ
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Brand & Category with Synchronized Custom Dropdowns */}
+              {/* Brand & Category with Top "Add New" feature in CustomDropdown */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Thương hiệu *
                   </label>
                   <CustomDropdown
-                    options={brandOptions}
+                    options={allBrandOptions}
                     value={brand}
                     onChange={(v) => setBrand(v)}
                     fullWidth
+                    onAddNew={(newBrand) => {
+                      if (!extraBrands.includes(newBrand)) {
+                        setExtraBrands((prev) => [newBrand, ...prev]);
+                      }
+                      setBrand(newBrand);
+                    }}
+                    addNewLabel="+ Thêm thương hiệu mới..."
+                    addNewPlaceholder="Nhập tên hãng (VD: Hasselblad, DJI...)"
                   />
                 </div>
 
@@ -1080,10 +1159,19 @@ export default function AdminPage() {
                     Phân loại danh mục *
                   </label>
                   <CustomDropdown
-                    options={categoryOptions}
+                    options={allCategoryOptions}
                     value={category}
                     onChange={(v) => setCategory(v)}
                     fullWidth
+                    onAddNew={(newCat) => {
+                      const slug = newCat.toLowerCase().replace(/\s+/g, '-');
+                      if (!extraCategories.some((c) => c.value === slug)) {
+                        setExtraCategories((prev) => [{ label: newCat, value: slug }, ...prev]);
+                      }
+                      setCategory(slug);
+                    }}
+                    addNewLabel="+ Thêm danh mục mới..."
+                    addNewPlaceholder="Nhập tên danh mục mới..."
                   />
                 </div>
               </div>
@@ -1169,17 +1257,17 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Description - 2x height textarea */}
+              {/* Description - RichTextEditor (Word-like WYSIWYG) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Mô tả chi tiết &amp; đánh giá máy
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Mô tả chi tiết &amp; đánh giá máy (Soạn thảo văn bản Word)</span>
+                  <span className="text-[11px] text-amber-600 font-normal">Hỗ trợ in đậm, bảng thông số, khung cam kết</span>
                 </label>
-                <textarea
-                  rows={8}
-                  placeholder="Đặc điểm nổi bật, số shot đã chụp, tình trạng kính, cảm biến sensor, bảo hành, phụ kiện kèm theo..."
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white min-h-[180px] sm:min-h-[220px]"
+                  onChange={(html) => setDescription(html)}
+                  placeholder="Nhập bài viết mô tả, thông số kỹ thuật, đánh giá ngoại hình, bảo hành & phụ kiện..."
+                  minHeight="220px"
                 />
               </div>
 

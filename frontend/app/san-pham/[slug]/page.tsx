@@ -108,18 +108,18 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               {product.name}
             </h1>
 
-            {/* Price Box */}
+            {/* Price Box (CellphoneS style) */}
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-baseline justify-between">
               <div>
                 <span className="text-xs text-slate-500 block mb-1">Giá bán công khai:</span>
-                <span className="text-2xl sm:text-3xl font-black text-amber-600 font-mono tracking-tight">
+                <span className="text-2xl sm:text-3xl font-extrabold text-red-600 tracking-tight">
                   {formatVND(product.price)}
                 </span>
               </div>
               {product.originalPrice && product.originalPrice > product.price ? (
                 <div className="text-right">
                   <span className="text-xs text-slate-400 block mb-1">Giá niêm yết:</span>
-                  <span className="text-slate-400 text-sm sm:text-base line-through font-mono">
+                  <span className="text-slate-400 text-sm sm:text-base line-through">
                     {formatVND(product.originalPrice)}
                   </span>
                 </div>
@@ -180,13 +180,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       {/* Description & Detailed Content */}
       {product.description && (
         <section className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
             <Info className="w-5 h-5 text-amber-500" />
             <span>Mô tả chi tiết &amp; đánh giá máy</span>
           </h2>
-          <div className="text-slate-600 text-sm sm:text-base leading-relaxed whitespace-pre-line space-y-2">
-            {product.description}
-          </div>
+          <div
+            className="prose prose-slate max-w-none text-slate-700 text-sm sm:text-base leading-relaxed space-y-3 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-slate-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-slate-900 [&_h3]:mt-3 [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1.5 [&_p]:my-2 [&_table]:w-full [&_table]:border-collapse [&_th]:bg-slate-50 [&_th]:p-3 [&_th]:text-left [&_td]:p-3 [&_td]:border-b [&_td]:border-slate-100"
+            dangerouslySetInnerHTML={{ __html: product.description }}
+          />
         </section>
       )}
 
