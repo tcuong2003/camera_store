@@ -93,7 +93,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         </div>
 
         {/* Right Column: Specifications & Direct Purchase Actions (5 cols on desktop) */}
-        <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
+        <div className="lg:col-span-5 flex flex-col justify-start space-y-5">
           <div className="space-y-4">
             {/* Badges: Brand & Category */}
             <div className="flex flex-wrap items-center gap-2">

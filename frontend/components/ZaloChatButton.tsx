@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, CheckCircle2, Copy, X } from 'lucide-react';
+import { MessageSquare, CheckCircle2, Copy } from 'lucide-react';
 
 interface ZaloChatButtonProps {
   productName: string;
@@ -14,7 +14,6 @@ export default function ZaloChatButton({
   slug,
   hotline = '0986834449',
 }: ZaloChatButtonProps) {
-  const [showToast, setShowToast] = useState(false);
   const [copiedLinkOnly, setCopiedLinkOnly] = useState(false);
 
   const getFullMessage = () => {
@@ -40,7 +39,6 @@ export default function ZaloChatButton({
       const message = getFullMessage();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(message);
-        setShowToast(true);
       }
     } catch (e) {
       console.warn('Clipboard write failed:', e);
@@ -98,30 +96,6 @@ export default function ZaloChatButton({
           )}
         </button>
       </div>
-
-      {/* Floating or inline toast notification when Zalo is clicked */}
-      {showToast && (
-        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs shadow-sm flex items-start justify-between gap-3 animate-in fade-in duration-200">
-          <div className="flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-amber-900">
-                Đã tự động sao chép link &amp; tin nhắn vào bộ nhớ tạm!
-              </p>
-              <p className="text-amber-800 mt-1 leading-relaxed">
-                Khi khung chat Zalo mở ra, bạn chỉ cần bấm <strong className="font-bold bg-amber-200/80 px-1.5 py-0.5 rounded text-slate-900">Ctrl + V</strong> (hoặc Dán) là toàn bộ lời nhắn và link sản phẩm sẽ hiển thị ngay để gửi shop.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowToast(false)}
-            className="text-amber-600 hover:text-amber-900 p-1"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
