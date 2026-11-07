@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Category = require('../models/Category');
+const Product = require('../models/Product');
 const slugify = require('slugify');
 const memoryStore = require('../config/memoryStore');
 
@@ -13,7 +14,24 @@ const getCategories = async (req, res) => {
     const { type } = req.query;
 
     if (!isDbConnected()) {
-      let cats = memoryStore.getMemoryCategories();
+      let cats = [...memoryStore.getMemoryCategories()];
+      // Automatically merge categories used in products if not already in cats
+      const products = memoryStore.getMemoryProducts();
+      const existingSlugs = new Set(cats.map((c) => (c.slug || c.name || '').toLowerCase()));
+      for (const p of products) {
+        if (p.category && !existingSlugs.has(p.category.toLowerCase())) {
+          existingSlugs.add(p.category.toLowerCase());
+          const newCat = {
+            name: p.category,
+            slug: p.category,
+            type: 'category',
+            order: cats.length + 1,
+            isActive: true,
+          };
+          cats.push(newCat);
+          memoryStore.addMemoryCategory(newCat);
+        }
+      }
       if (type) cats = cats.filter((c) => c.type === type);
       return res.status(200).json({ success: true, categories: cats });
     }
@@ -22,9 +40,33 @@ const getCategories = async (req, res) => {
     if (type) query.type = type;
 
     const categories = await Category.find(query).sort({ type: 1, order: 1 });
+    
+    // Also merge any categories from products
+    try {
+      const productCategories = await Product.distinct('category');
+      const existingSlugs = new Set(categories.map((c) => (c.slug || c.name || '').toLowerCase()));
+      for (const catName of productCategories) {
+        if (catName && !existingSlugs.has(catName.toLowerCase())) {
+          existingSlugs.add(catName.toLowerCase());
+          categories.push({
+            name: catName,
+            slug: catName,
+            type: 'category',
+            order: 99,
+            isActive: true,
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore distinct error if any
+    }
+
+    let result = categories;
+    if (type) result = result.filter((c) => c.type === type);
+
     return res.status(200).json({
       success: true,
-      categories,
+      categories: result,
     });
   } catch (error) {
     return res.status(500).json({

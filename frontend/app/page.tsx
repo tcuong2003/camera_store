@@ -117,6 +117,10 @@ function CatalogContent() {
     });
   };
 
+  const availableCategories = React.useMemo(() => {
+    return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+  }, [products]);
+
   return (
     <div ref={catalogTopRef} className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
       {/* 1. Filter Section (Danh mục sản phẩm) */}
@@ -125,6 +129,7 @@ function CatalogContent() {
           filters={filters}
           onChange={handleFilterChange}
           totalCount={totalCount}
+          availableCategories={availableCategories}
         />
       </section>
 

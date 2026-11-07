@@ -288,6 +288,18 @@ const createProduct = async (req, res) => {
     const computedPriceCategory = priceCategory || calculatePriceCategory(Number(price));
 
     if (!isDbConnected()) {
+      const assignedCategory = category || 'may-anh-cu';
+      const memCats = memoryStore.getMemoryCategories();
+      if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === assignedCategory.toLowerCase())) {
+        memoryStore.addMemoryCategory({
+          name: assignedCategory,
+          slug: assignedCategory,
+          type: 'category',
+          order: memCats.length + 1,
+          isActive: true,
+        });
+      }
+
       const newProd = {
         _id: `prod-${Date.now()}`,
         name,
@@ -297,7 +309,7 @@ const createProduct = async (req, res) => {
         condition: condition || 'Ngoại hình 98% - Hoạt động hoàn hảo',
         brand,
         priceCategory: computedPriceCategory,
-        category: category || 'may-anh-cu',
+        category: assignedCategory,
         deviceType: deviceType || 'Mirrorless',
         images,
         description: description || '',
@@ -364,6 +376,18 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
 
     if (!isDbConnected()) {
+      if (req.body.category) {
+        const memCats = memoryStore.getMemoryCategories();
+        if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === req.body.category.toLowerCase())) {
+          memoryStore.addMemoryCategory({
+            name: req.body.category,
+            slug: req.body.category,
+            type: 'category',
+            order: memCats.length + 1,
+            isActive: true,
+          });
+        }
+      }
       const updated = memoryStore.updateMemoryProduct(id, req.body);
       if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm để cập nhật' });
       return res.status(200).json({ success: true, message: 'Cập nhật thành công', product: updated });

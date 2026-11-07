@@ -17,6 +17,26 @@ interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
 }
 
+const CATEGORY_NAMES: Record<string, string> = {
+  'may-anh-cu': 'Máy ảnh cũ',
+  'may-anh-chinh-hang': 'Máy ảnh chính hãng',
+  'ong-kinh': 'Ống kính (Lens)',
+  'phu-kien': 'Phụ kiện máy ảnh',
+  'Mirrorless': 'Mirrorless',
+  'DSLR': 'DSLR',
+  'Compact': 'Compact / Y2K',
+};
+
+const getCategoryLabel = (category?: string, deviceType?: string) => {
+  if (category) {
+    return CATEGORY_NAMES[category] || category;
+  }
+  if (deviceType) {
+    return CATEGORY_NAMES[deviceType] || deviceType;
+  }
+  return 'Máy ảnh';
+};
+
 export async function generateMetadata({ params }: ProductDetailPageProps) {
   const { slug } = await params;
   const data = await fetchProductBySlug(slug);
@@ -70,26 +90,18 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         {/* Left Column: Image Album Gallery (7 cols on desktop) */}
         <div className="lg:col-span-7">
           <ImageGallery images={product.images} productName={product.name} />
-
-          {/* Screenshot & Zalo tip box */}
-          <div className="mt-4 p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-slate-700 flex items-start gap-3 shadow-sm">
-            <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-slate-900">Mẹo chọn máy nhanh:</strong> Quý khách có thể bấm biểu tượng <strong>Tải ảnh</strong> ở góc ảnh hoặc <strong>chụp ảnh màn hình</strong> chiếc máy này, sau đó bấm nút chat Zalo bên dưới để gửi thẳng cho chủ shop chốt đơn giữ máy!
-            </div>
-          </div>
         </div>
 
         {/* Right Column: Specifications & Direct Purchase Actions (5 cols on desktop) */}
         <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
           <div className="space-y-4">
-            {/* Badges: Brand & Condition */}
+            {/* Badges: Brand & Category */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-700 text-xs font-bold uppercase tracking-wider">
                 {product.brand}
               </span>
               <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
-                {product.deviceType || 'Máy ảnh'}
+                {getCategoryLabel(product.category, product.deviceType)}
               </span>
               {product.isAvailable ? (
                 <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-semibold flex items-center gap-1">
@@ -124,31 +136,6 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                   </span>
                 </div>
               ) : null}
-            </div>
-
-            {/* Key Specifications Grid */}
-            <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-start gap-3 text-xs sm:text-sm">
-                <span className="font-bold text-slate-500 w-28 shrink-0">Tình trạng máy:</span>
-                <span className="text-amber-700 font-bold">{product.condition}</span>
-              </div>
-
-              <div className="flex items-start gap-3 text-xs sm:text-sm">
-                <span className="font-bold text-slate-500 w-28 shrink-0">Phụ kiện kèm theo:</span>
-                <span className="text-slate-800">{product.accessories || 'Đầy đủ pin, sạc, thẻ nhớ, dây đeo'}</span>
-              </div>
-
-              <div className="flex items-start gap-3 text-xs sm:text-sm">
-                <span className="font-bold text-slate-500 w-28 shrink-0">Chế độ bảo hành:</span>
-                <span className="text-emerald-700 font-semibold">
-                  {product.warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày 1 đổi 1'}
-                </span>
-              </div>
-
-              <div className="flex items-start gap-3 text-xs sm:text-sm">
-                <span className="font-bold text-slate-500 w-28 shrink-0">Hình thức giao dịch:</span>
-                <span className="text-slate-700">Ghé test trực tiếp tại Sài Gòn hoặc Ship COD toàn quốc</span>
-              </div>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Camera,
@@ -29,6 +29,7 @@ import {
   adminUpdateProduct,
   adminDeleteProduct,
   adminUploadImages,
+  adminCreateCategory,
   fetchProducts,
   fetchCategories,
   formatVND,
@@ -506,10 +507,36 @@ export default function AdminPage() {
     { label: 'Compact / Y2K', value: 'Compact' },
   ];
 
-  const allCategoryOptions: DropdownOption[] = [
-    ...extraCategories,
-    ...baseCategoryOptions.filter((opt) => !extraCategories.some((c) => c.value === opt.value)),
-  ];
+  const allCategoryOptions: DropdownOption[] = useMemo(() => {
+    const list: DropdownOption[] = [...extraCategories];
+    const seen = new Set(list.map((c) => c.value.toLowerCase()));
+
+    categories
+      .filter((c) => c.type === 'category')
+      .forEach((c) => {
+        const slug = c.slug || c.name;
+        if (!seen.has(slug.toLowerCase())) {
+          seen.add(slug.toLowerCase());
+          list.push({ label: c.name, value: slug });
+        }
+      });
+
+    products.forEach((p) => {
+      if (p.category && !seen.has(p.category.toLowerCase())) {
+        seen.add(p.category.toLowerCase());
+        list.push({ label: p.category, value: p.category });
+      }
+    });
+
+    baseCategoryOptions.forEach((opt) => {
+      if (!seen.has(opt.value.toLowerCase())) {
+        seen.add(opt.value.toLowerCase());
+        list.push(opt);
+      }
+    });
+
+    return list;
+  }, [extraCategories, categories, products]);
 
   const filterBrandOptions: DropdownOption[] = [
     { label: 'Tất cả hãng', value: 'all' },
@@ -1057,11 +1084,14 @@ export default function AdminPage() {
                     onChange={(v) => setCategory(v)}
                     fullWidth
                     onAddNew={(newCat) => {
-                      const slug = newCat.toLowerCase().replace(/\s+/g, '-');
-                      if (!extraCategories.some((c) => c.value === slug)) {
-                        setExtraCategories((prev) => [{ label: newCat, value: slug }, ...prev]);
+                      const slug = newCat.trim();
+                      if (!extraCategories.some((c) => c.value.toLowerCase() === slug.toLowerCase())) {
+                        setExtraCategories((prev) => [{ label: newCat.trim(), value: slug }, ...prev]);
                       }
                       setCategory(slug);
+                      if (token) {
+                        adminCreateCategory({ name: newCat.trim(), type: 'category' }, token).catch(() => {});
+                      }
                     }}
                     addNewLabel="+ Thêm danh mục mới..."
                     addNewPlaceholder="Nhập tên danh mục mới..."

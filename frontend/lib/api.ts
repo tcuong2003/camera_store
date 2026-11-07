@@ -250,3 +250,18 @@ export const adminGetStats = async (token: string) => {
   });
   return await res.json();
 };
+
+export const adminCreateCategory = async (
+  categoryData: { name: string; type: string; order?: number },
+  token: string
+) => {
+  const res = await fetch(`${API_BASE_URL}/categories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(categoryData),
+  });
+  return await res.json();
+};

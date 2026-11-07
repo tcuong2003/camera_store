@@ -3,6 +3,29 @@ const slugify = require('slugify');
 // 100 realistic mock products for MÁY ẢNH TOP 1
 const initialProducts = [
   {
+    "_id": "prod-heloo",
+    "name": "heloo",
+    "slug": "heloo",
+    "price": 12312,
+    "originalPrice": 123,
+    "condition": "Ngoại hình đẹp - Hoạt động hoàn hảo",
+    "brand": "Canon",
+    "priceCategory": "under_3m",
+    "category": "hi",
+    "deviceType": "Mirrorless",
+    "images": [
+      "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=80"
+    ],
+    "description": "<p>12312312</p>",
+    "accessories": "Đầy đủ pin, sạc, dây đeo sẵn dùng",
+    "warranty": "Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1",
+    "isAvailable": true,
+    "featured": true,
+    "views": 25,
+    "createdAt": new Date().toISOString(),
+    "updatedAt": new Date().toISOString()
+  },
+  {
     "_id": "prod-1",
     "name": "Panasonic Lumix G7 + Lens 14-42mm OIS (Quay 4K giá sinh viên)",
     "slug": "panasonic-lumix-g7-lens-14-42mm-ois-quay-4k-gia-sinh-vien",
@@ -2524,6 +2547,7 @@ const initialCategories = [
   { name: 'Mirrorless', slug: 'Mirrorless', type: 'category', order: 5 },
   { name: 'DSLR', slug: 'DSLR', type: 'category', order: 6 },
   { name: 'Compact / Y2K', slug: 'Compact', type: 'category', order: 7 },
+  { name: 'hi', slug: 'hi', type: 'category', order: 8 },
 ];
 
 let memoryProducts = [...initialProducts];
