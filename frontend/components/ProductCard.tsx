@@ -10,9 +10,25 @@ interface ProductCardProps {
   product: Product;
 }
 
+// Helper to strip HTML tags and clean up whitespace for plain text preview
+const stripHtml = (html?: string): string => {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export default function ProductCard({ product }: ProductCardProps) {
   const thumbnail = product.images?.[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
   const imageCount = product.images?.length || 1;
+  const plainDesc = stripHtml(product.description);
 
   return (
     <Link
@@ -73,10 +89,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             ) : null}
           </div>
 
-          {/* Accessories highlight (Clean text without green tick) */}
-          {product.accessories && (
+          {/* Product description preview (Clean text stripped of HTML, truncated with ...) */}
+          {plainDesc && (
             <p className="mt-1.5 text-slate-500 text-xs line-clamp-2 leading-relaxed">
-              {product.accessories}
+              {plainDesc}
             </p>
           )}
         </div>
