@@ -101,27 +101,31 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
       {/* Thumbnails strip */}
       {imageList.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
-          {imageList.map((img, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedIndex(idx)}
-              className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border-2 transition-all ${
-                selectedIndex === idx
-                  ? 'border-amber-500 ring-2 ring-amber-400/40 scale-105'
-                  : 'border-slate-200 opacity-70 hover:opacity-100'
-              }`}
-            >
-              <img
-                src={img}
-                alt={`Thumbnail ${idx + 1}`}
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
-                #{idx + 1}
-              </span>
-            </button>
-          ))}
+        <div className="flex items-center gap-2.5 overflow-x-auto py-2 px-1 scrollbar-thin">
+          {imageList.map((img, idx) => {
+            const isSelected = selectedIndex === idx;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSelectedIndex(idx)}
+                className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border-2 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-amber-500 ring-2 ring-amber-400/70 shadow-md shadow-amber-500/20 opacity-100'
+                    : 'border-slate-200 hover:border-slate-300 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={`Thumbnail ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
+                  #{idx + 1}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -178,13 +182,14 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
           </div>
 
           {/* Bottom Thumbnails in Fullscreen */}
-          <div className="flex items-center justify-center gap-2 overflow-x-auto py-2">
+          <div className="flex items-center justify-center gap-2 overflow-x-auto py-3 px-2">
             {imageList.map((img, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => setSelectedIndex(idx)}
-                className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedIndex === idx ? 'border-amber-500 scale-110' : 'border-slate-800 opacity-50'
+                className={`w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                  selectedIndex === idx ? 'border-amber-500 ring-2 ring-amber-400/80 shadow-lg' : 'border-slate-800 opacity-50 hover:opacity-80'
                 }`}
               >
                 <img src={img} alt="Thumb" className="w-full h-full object-cover" />
