@@ -27,7 +27,7 @@ const getProducts = async (req, res) => {
       isAvailable,
       sort,
       page = 1,
-      limit = 16,
+      limit = 25,
     } = req.query;
 
     if (!isDbConnected()) {
@@ -78,7 +78,7 @@ const getProducts = async (req, res) => {
 
       const total = filtered.length;
       const pageNum = parseInt(page, 10) || 1;
-      const limitNum = parseInt(limit, 10) || 16;
+      const limitNum = parseInt(limit, 10) || 25;
       const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
       return res.status(200).json({
@@ -133,7 +133,7 @@ const getProducts = async (req, res) => {
     else if (sort === 'views_desc') sortOption = { views: -1 };
 
     const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 24;
+    const limitNum = parseInt(limit, 10) || 25;
     const skip = (pageNum - 1) * limitNum;
 
     const total = await Product.countDocuments(query);

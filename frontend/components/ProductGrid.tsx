@@ -18,8 +18,8 @@ export default function ProductGrid({
 }: ProductGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-        {[...Array(8)].map((_, i) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-4.5">
+        {[...Array(10)].map((_, i) => (
           <div
             key={i}
             className="bg-white border border-slate-200 rounded-2xl overflow-hidden animate-pulse flex flex-col shadow-sm"
@@ -64,7 +64,7 @@ export default function ProductGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-4.5">
       {products.map((product) => (
         <ProductCard key={product._id || product.slug} product={product} />
       ))}

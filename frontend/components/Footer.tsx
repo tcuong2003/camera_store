@@ -4,7 +4,7 @@ import { Phone, MessageSquare, MapPin } from 'lucide-react';
 export default function Footer() {
   return (
     <footer className="bg-white border-t border-slate-200 text-slate-600 pt-10 pb-24 sm:pb-10 mt-14 shadow-inner">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Footer Main Columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10">
           {/* Brand Info */}

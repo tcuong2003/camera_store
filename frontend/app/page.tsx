@@ -20,10 +20,10 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const catalogTopRef = useRef<HTMLDivElement>(null);
 
-  const [products, setProducts] = useState<Product[]>(() => FALLBACK_PRODUCTS.slice(0, 16));
+  const [products, setProducts] = useState<Product[]>(() => FALLBACK_PRODUCTS.slice(0, 25));
   const [isLoading, setIsLoading] = useState(false);
   const [totalCount, setTotalCount] = useState<number>(() => FALLBACK_PRODUCTS.length);
-  const [totalPages, setTotalPages] = useState<number>(() => Math.ceil(FALLBACK_PRODUCTS.length / 16));
+  const [totalPages, setTotalPages] = useState<number>(() => Math.ceil(FALLBACK_PRODUCTS.length / 25));
 
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
@@ -55,7 +55,7 @@ function CatalogContent() {
           deviceType: filters.deviceType,
           sort: filters.sort,
           page: currentPage,
-          limit: 16, // 4x4
+          limit: 25, // 5x5
         });
 
         if (isMounted) {
@@ -118,7 +118,7 @@ function CatalogContent() {
   };
 
   return (
-    <div ref={catalogTopRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
+    <div ref={catalogTopRef} className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
       {/* 1. Filter Section (Danh mục sản phẩm) */}
       <section>
         <FilterBar

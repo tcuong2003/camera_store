@@ -108,7 +108,7 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
     }
 
     const pageNum = params.page || 1;
-    const limitNum = params.limit || 16;
+    const limitNum = params.limit || 25;
     const total = filtered.length;
     const totalPages = Math.ceil(total / limitNum) || 1;
     const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
