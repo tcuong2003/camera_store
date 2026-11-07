@@ -565,7 +565,7 @@ export default function AdminPage() {
   if (!token) {
     return (
       <div className="min-h-[75vh] flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="text-center space-y-2">
             <img
               src="/logo.png"
@@ -573,7 +573,7 @@ export default function AdminPage() {
               className="w-16 h-16 object-contain mx-auto mb-2"
             />
             <h1 className="text-2xl font-black text-slate-900">Quản trị MÁY ẢNH TOP 1</h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 whitespace-nowrap">
               Đăng nhập để thêm, sửa, xóa máy ảnh và cập nhật album ảnh ngoại hình
             </p>
           </div>
@@ -622,10 +622,6 @@ export default function AdminPage() {
               {isLoggingIn ? 'Đang xác thực...' : 'Đăng nhập Quản trị viên'}
             </button>
           </form>
-
-          <div className="pt-4 border-t border-slate-100 text-center text-xs text-slate-400">
-            Tài khoản mặc định: <code className="text-amber-600 font-mono font-bold">admin</code> / <code className="text-amber-600 font-mono font-bold">mayanhtop1@2026</code>
-          </div>
         </div>
       </div>
     );
