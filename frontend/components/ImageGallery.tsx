@@ -97,11 +97,6 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
             </button>
           </>
         )}
-
-        {/* Bottom subtle note */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-slate-950/75 backdrop-blur text-[11px] text-slate-200 font-medium">
-          Ảnh ngoại hình chụp thật tại shop 100%
-        </div>
       </div>
 
       {/* Thumbnails strip */}

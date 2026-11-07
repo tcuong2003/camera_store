@@ -35,13 +35,16 @@ export const formatVND = (price: number): string => {
   return `${formatted}đ`;
 };
 
-// Generate Zalo chat link
-export const getZaloChatUrl = (productName?: string): string => {
+// Generate Zalo chat link with optional product URL
+export const getZaloChatUrl = (productName?: string, productUrl?: string): string => {
   const hotline = process.env.NEXT_PUBLIC_HOTLINE || '0986834449';
   if (!productName) {
     return `https://zalo.me/${hotline}`;
   }
-  return `https://zalo.me/${hotline}?text=${encodeURIComponent(`Chào shop MÁY ẢNH TOP 1, mình đang quan tâm máy: ${productName}. Cho mình xin thêm ảnh chi tiết và tư vấn nhé!`)}`;
+  const text = productUrl
+    ? `Chào shop MÁY ẢNH TOP 1, mình đang quan tâm máy: ${productName}\nLink sản phẩm: ${productUrl}\nCho mình xin thêm ảnh chi tiết và tư vấn nhé!`
+    : `Chào shop MÁY ẢNH TOP 1, mình đang quan tâm máy: ${productName}. Cho mình xin thêm ảnh chi tiết và tư vấn nhé!`;
+  return `https://zalo.me/${hotline}?text=${encodeURIComponent(text)}`;
 };
 
 // Fetch products with filters

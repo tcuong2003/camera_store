@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ImageGallery from '../../../components/ImageGallery';
 import ProductCard from '../../../components/ProductCard';
-import { fetchProductBySlug, formatVND, getZaloChatUrl } from '../../../lib/api';
+import ZaloChatButton from '../../../components/ZaloChatButton';
+import { fetchProductBySlug, formatVND } from '../../../lib/api';
 import {
   Phone,
   MessageSquare,
@@ -67,7 +68,6 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   const { product, related } = data;
-  const zaloChatUrl = getZaloChatUrl(product.name);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8">
@@ -103,12 +103,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
                 {getCategoryLabel(product.category, product.deviceType)}
               </span>
-              {product.isAvailable ? (
-                <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-semibold flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Sẵn hàng tại Sài Gòn
-                </span>
-              ) : (
+              {!product.isAvailable && (
                 <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold">
                   Đã bán / Tạm hết
                 </span>
@@ -141,16 +136,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           {/* Primary Action Buttons (Call-to-Action) */}
           <div className="space-y-3 pt-2">
-            {/* Primary CTA: Zalo */}
-            <a
-              href={zaloChatUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-base shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all"
-            >
-              <MessageSquare className="w-5 h-5 fill-current" />
-              <span>Nhắn Zalo Tư Vấn / Chốt Đơn Máy Này</span>
-            </a>
+            {/* Primary CTA: Zalo with auto product link */}
+            <ZaloChatButton productName={product.name} slug={product.slug} />
 
             {/* Secondary CTA: Phone Call */}
             <a
