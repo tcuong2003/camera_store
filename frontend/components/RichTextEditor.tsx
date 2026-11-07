@@ -274,10 +274,11 @@ export default function RichTextEditor({
         <div
           ref={editorRef}
           contentEditable
+          dir="ltr"
           suppressContentEditableWarning
           onInput={handleInput}
           onBlur={handleInput}
-          className="p-4 focus:outline-none text-sm text-slate-900 leading-relaxed overflow-y-auto prose prose-slate max-w-none"
+          className="p-4 focus:outline-none text-sm text-slate-900 leading-relaxed overflow-y-auto prose prose-slate max-w-none text-left"
           style={{ minHeight }}
         />
       </div>

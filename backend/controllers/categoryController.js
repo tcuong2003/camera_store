@@ -175,6 +175,7 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     if (!isDbConnected()) {
+      memoryStore.deleteMemoryCategory(req.params.id);
       return res.status(200).json({ success: true, message: 'Xóa danh mục thành công' });
     }
 

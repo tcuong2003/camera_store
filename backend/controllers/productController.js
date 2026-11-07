@@ -268,7 +268,7 @@ const createProduct = async (req, res) => {
       featured,
     } = req.body;
 
-    if (!name || !price || !brand) {
+    if (!name || price === undefined || price === null || price === '' || !brand) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng điền đầy đủ Tên máy, Giá và Thương hiệu',
@@ -282,12 +282,19 @@ const createProduct = async (req, res) => {
       });
     }
 
-    let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' });
+    let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' }) || 'may-anh';
     let uniqueSlug = baseSlug;
 
     const computedPriceCategory = priceCategory || calculatePriceCategory(Number(price));
 
     if (!isDbConnected()) {
+      const existingProds = memoryStore.getMemoryProducts();
+      let count = 1;
+      while (existingProds.some((p) => p.slug === uniqueSlug)) {
+        uniqueSlug = `${baseSlug}-${count}`;
+        count++;
+      }
+
       const assignedCategory = category || 'may-anh-cu';
       const memCats = memoryStore.getMemoryCategories();
       if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === assignedCategory.toLowerCase())) {
@@ -376,19 +383,26 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
 
     if (!isDbConnected()) {
-      if (req.body.category) {
+      const updates = { ...req.body };
+      if (updates.name) {
+        updates.slug = slugify(updates.name, { lower: true, strict: true, locale: 'vi' }) || 'may-anh';
+      }
+      if (updates.price !== undefined && !updates.priceCategory) {
+        updates.priceCategory = calculatePriceCategory(Number(updates.price));
+      }
+      if (updates.category) {
         const memCats = memoryStore.getMemoryCategories();
-        if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === req.body.category.toLowerCase())) {
+        if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === updates.category.toLowerCase())) {
           memoryStore.addMemoryCategory({
-            name: req.body.category,
-            slug: req.body.category,
+            name: updates.category,
+            slug: updates.category,
             type: 'category',
             order: memCats.length + 1,
             isActive: true,
           });
         }
       }
-      const updated = memoryStore.updateMemoryProduct(id, req.body);
+      const updated = memoryStore.updateMemoryProduct(id, updates);
       if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm để cập nhật' });
       return res.status(200).json({ success: true, message: 'Cập nhật thành công', product: updated });
     }
@@ -416,8 +430,14 @@ const updateProduct = async (req, res) => {
     } = req.body;
 
     if (name && name !== product.name) {
-      let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' });
-      product.slug = baseSlug;
+      let baseSlug = slugify(name, { lower: true, strict: true, locale: 'vi' }) || 'may-anh';
+      let uniqueSlug = baseSlug;
+      let count = 1;
+      while (await Product.findOne({ slug: uniqueSlug, _id: { $ne: product._id } })) {
+        uniqueSlug = `${baseSlug}-${count}`;
+        count++;
+      }
+      product.slug = uniqueSlug;
       product.name = name;
     }
 

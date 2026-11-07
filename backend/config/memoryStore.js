@@ -2576,7 +2576,9 @@ module.exports = {
     memoryCategories.push(c);
     return c;
   },
-  deleteMemoryCategory: (slug) => {
-    memoryCategories = memoryCategories.filter((c) => c.slug !== slug);
+  deleteMemoryCategory: (idOrSlug) => {
+    memoryCategories = memoryCategories.filter(
+      (c) => c.slug !== idOrSlug && c.name !== idOrSlug && c._id !== idOrSlug
+    );
   },
 };
