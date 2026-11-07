@@ -80,14 +80,6 @@ export default function ProductCard({ product }: ProductCardProps) {
             </p>
           )}
         </div>
-
-        {/* Subtle detail note */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-          <span className="line-clamp-1">{product.condition}</span>
-          <span className="text-amber-600 font-semibold shrink-0 group-hover:translate-x-0.5 transition-transform">
-            Xem chi tiết →
-          </span>
-        </div>
       </div>
     </Link>
   );

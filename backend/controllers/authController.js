@@ -1,6 +1,9 @@
+const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+
+const isDbConnected = () => mongoose.connection.readyState === 1;
 
 const generateToken = (id, username) => {
   return jwt.sign(
@@ -24,11 +27,32 @@ const login = async (req, res) => {
       });
     }
 
-    const admin = await Admin.findOne({ username: username.toLowerCase() });
-
-    // Fallback if no admin in DB yet or matching default credentials
     const defaultUser = process.env.ADMIN_USERNAME || 'admin';
     const defaultPass = process.env.ADMIN_PASSWORD || 'mayanhtop1@2026';
+
+    // If MongoDB is offline, use instant in-memory credentials check
+    if (!isDbConnected()) {
+      if (username === defaultUser && password === defaultPass) {
+        const token = generateToken('admin-root', defaultUser);
+        return res.status(200).json({
+          success: true,
+          message: 'Đăng nhập thành công (Chế độ lưu trữ nhanh)',
+          token,
+          admin: {
+            id: 'admin-root',
+            username: defaultUser,
+            name: 'Chủ Cửa Hàng - MÁY ẢNH TOP 1',
+            role: 'admin',
+          },
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        message: 'Tài khoản hoặc mật khẩu không chính xác',
+      });
+    }
+
+    const admin = await Admin.findOne({ username: username.toLowerCase() });
 
     if (!admin) {
       if (username === defaultUser && password === defaultPass) {

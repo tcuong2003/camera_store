@@ -58,8 +58,8 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
     if (params.limit) query.append('limit', params.limit.toString());
 
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
-      next: { revalidate: 10 },
-      signal: AbortSignal.timeout(4000),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!res.ok) {
@@ -93,8 +93,12 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
     }
 
     if (params.category && params.category !== 'all') {
-      const cats = params.category.split(',');
-      filtered = filtered.filter((p) => cats.includes(p.category));
+      const cats = params.category.split(',').map((c) => c.toLowerCase());
+      filtered = filtered.filter(
+        (p) =>
+          cats.includes(p.category?.toLowerCase()) ||
+          (p.deviceType && cats.includes(p.deviceType.toLowerCase()))
+      );
     }
 
     if (params.deviceType && params.deviceType !== 'all') {
@@ -128,8 +132,8 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
 export const fetchProductBySlug = async (slug: string): Promise<SingleProductResponse | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/products/slug/${slug}`, {
-      next: { revalidate: 10 },
-      signal: AbortSignal.timeout(4000),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
     });
 
     if (res.ok) {

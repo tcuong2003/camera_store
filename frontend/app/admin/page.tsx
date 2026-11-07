@@ -130,7 +130,7 @@ export default function AdminPage() {
   const loadProductsList = async () => {
     setIsLoadingProducts(true);
     try {
-      const res = await fetchProducts({ limit: 100 });
+      const res = await fetchProducts({ limit: 500 });
       setProducts(res.products || FALLBACK_PRODUCTS);
     } catch (err) {
       console.error(err);
@@ -392,36 +392,16 @@ export default function AdminPage() {
         if (res.success && res.product) {
           setProducts([res.product, ...products]);
         } else {
-          const newMock: Product = {
-            _id: `prod-${Date.now()}`,
-            name,
-            slug: name.toLowerCase().replace(/\s+/g, '-'),
-            price: Number(price),
-            originalPrice: originalPrice ? Number(originalPrice) : 0,
-            condition: condition || 'Ngoại hình đẹp - Hoạt động hoàn hảo',
-            brand,
-            priceCategory: autoPriceCategory,
-            category,
-            deviceType: autoDeviceType,
-            images,
-            accessories: accessories || 'Đầy đủ phụ kiện theo máy',
-            warranty: warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1',
-            description,
-            isAvailable,
-            featured,
-          };
-          setProducts([newMock, ...products]);
+          alert('Không thể lưu sản phẩm lên máy chủ: ' + (res.message || 'Lỗi không xác định'));
+          return;
         }
       } else if (modalMode === 'edit' && editingProduct) {
         const res = await adminUpdateProduct(editingProduct._id, payload, token || '');
         if (res.success && res.product) {
           setProducts(products.map((p) => (p._id === editingProduct._id ? res.product : p)));
         } else {
-          setProducts(
-            products.map((p) =>
-              p._id === editingProduct._id ? { ...p, ...payload } : p
-            )
-          );
+          alert('Không thể cập nhật sản phẩm: ' + (res.message || 'Lỗi không xác định'));
+          return;
         }
       }
       setIsModalOpen(false);
@@ -521,6 +501,9 @@ export default function AdminPage() {
     { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
     { label: 'Ống kính (Lens)', value: 'ong-kinh' },
     { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
+    { label: 'Mirrorless', value: 'Mirrorless' },
+    { label: 'DSLR', value: 'DSLR' },
+    { label: 'Compact / Y2K', value: 'Compact' },
   ];
 
   const allCategoryOptions: DropdownOption[] = [

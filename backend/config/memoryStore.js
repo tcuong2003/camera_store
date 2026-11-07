@@ -2517,6 +2517,13 @@ const initialCategories = [
   { name: 'Olympus', slug: 'olympus', type: 'brand', order: 6 },
   { name: 'Ricoh', slug: 'ricoh', type: 'brand', order: 7 },
   { name: 'Casio', slug: 'casio', type: 'brand', order: 8 },
+  { name: 'Máy ảnh cũ', slug: 'may-anh-cu', type: 'category', order: 1 },
+  { name: 'Máy ảnh chính hãng', slug: 'may-anh-chinh-hang', type: 'category', order: 2 },
+  { name: 'Ống kính (Lens)', slug: 'ong-kinh', type: 'category', order: 3 },
+  { name: 'Phụ kiện máy ảnh', slug: 'phu-kien', type: 'category', order: 4 },
+  { name: 'Mirrorless', slug: 'Mirrorless', type: 'category', order: 5 },
+  { name: 'DSLR', slug: 'DSLR', type: 'category', order: 6 },
+  { name: 'Compact / Y2K', slug: 'Compact', type: 'category', order: 7 },
 ];
 
 let memoryProducts = [...initialProducts];

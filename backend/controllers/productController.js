@@ -60,8 +60,12 @@ const getProducts = async (req, res) => {
       }
 
       if (category && category !== 'all') {
-        const categories = category.split(',').map((c) => c.trim());
-        filtered = filtered.filter((p) => categories.includes(p.category));
+        const categories = category.split(',').map((c) => c.trim().toLowerCase());
+        filtered = filtered.filter(
+          (p) =>
+            categories.includes(p.category?.toLowerCase()) ||
+            categories.includes(p.deviceType?.toLowerCase())
+        );
       }
 
       if (deviceType && deviceType !== 'all') {
@@ -120,7 +124,10 @@ const getProducts = async (req, res) => {
 
     if (category && category !== 'all') {
       const categories = category.split(',').map((c) => c.trim());
-      query.category = { $in: categories };
+      query.$or = [
+        { category: { $in: categories } },
+        { deviceType: { $in: categories } },
+      ];
     }
 
     if (deviceType && deviceType !== 'all') {
