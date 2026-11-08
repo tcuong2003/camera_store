@@ -698,7 +698,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 overflow-x-clip">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Admin Dashboard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>

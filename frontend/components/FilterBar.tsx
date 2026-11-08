@@ -165,15 +165,15 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
         )}
       </div>
 
-      {/* Category Pills List */}
-      <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-thin overscroll-x-contain touch-pan-x w-full max-w-full">
+      {/* Category Pills List - Flex wrap for clean mobile display without horizontal scroll */}
+      <div className="flex flex-wrap items-center gap-2 py-1 w-full">
         {allCategoryPills.map((opt) => {
           const active = isCatActive(opt);
           return (
             <button
               key={`${opt.type}-${opt.value}`}
               onClick={() => handleCategorySelect(opt)}
-              className={`shrink-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 active
                   ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40 scale-[1.02]'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80'
