@@ -129,8 +129,8 @@ export default function CustomDropdown({
             fullWidth
               ? 'left-0 right-0 w-full'
               : align === 'right'
-              ? 'right-0 w-56 sm:w-64'
-              : 'left-0 w-56 sm:w-64'
+              ? 'left-0 sm:left-auto sm:right-0 w-full sm:w-64 max-w-[calc(100vw-2rem)]'
+              : 'left-0 w-full sm:w-64 max-w-[calc(100vw-2rem)]'
           } bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden`}
         >
           {/* Pinned top: Add New option */}

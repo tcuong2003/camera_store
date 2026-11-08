@@ -101,7 +101,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
       {/* Thumbnails strip */}
       {imageList.length > 1 && (
-        <div className="flex items-center gap-2.5 overflow-x-auto py-2 px-1 scrollbar-thin">
+        <div className="flex items-center gap-2.5 overflow-x-auto py-2 px-1 scrollbar-thin overscroll-x-contain touch-pan-x">
           {imageList.map((img, idx) => {
             const isSelected = selectedIndex === idx;
             return (

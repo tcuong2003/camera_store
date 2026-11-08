@@ -170,7 +170,7 @@ function CatalogContent() {
           </div>
 
           {/* Right: Custom Dropdowns (Khoảng giá, Thương hiệu, Sắp xếp) */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:flex md:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
             {/* Bộ lọc 1: Khoảng giá (Từ đâu đến đâu) */}
             <CustomDropdown
               options={PRICE_OPTIONS}
@@ -178,6 +178,8 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
               icon={<DollarSign className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả khoảng giá"
+              fullWidth={true}
+              className="w-full sm:w-auto"
             />
 
             {/* Bộ lọc 2: Thương hiệu */}
@@ -187,6 +189,8 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, brand: val })}
               icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả thương hiệu"
+              fullWidth={true}
+              className="w-full sm:w-auto"
             />
 
             {/* Sắp xếp */}
@@ -197,6 +201,8 @@ function CatalogContent() {
               icon={<ArrowUpDown className="w-4 h-4 text-slate-500" />}
               placeholder="Sắp xếp"
               align="right"
+              fullWidth={true}
+              className="w-full sm:w-auto"
             />
           </div>
         </div>

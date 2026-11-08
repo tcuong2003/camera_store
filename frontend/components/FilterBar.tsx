@@ -166,7 +166,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
       </div>
 
       {/* Category Pills List */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-thin overscroll-x-contain touch-pan-x">
         {allCategoryPills.map((opt) => {
           const active = isCatActive(opt);
           return (

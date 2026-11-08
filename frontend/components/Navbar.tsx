@@ -87,19 +87,19 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-3">
           {/* Logo & Store Title */}
-          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 shrink-0 group">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink min-w-0 group">
             <img
               src="/logo.png"
               alt="Logo MÁY ẢNH TOP 1"
-              className="h-10 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+              className="h-9 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200 shrink-0"
             />
-            <div className="flex flex-col">
-              <span className="font-black text-lg sm:text-2xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+            <div className="flex flex-col min-w-0">
+              <span className="font-black text-base sm:text-2xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                 MÁY ẢNH TOP 1
               </span>
-              <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
+              <span className="text-[10px] sm:text-xs text-slate-500 font-medium truncate">
                 Chuyên máy ảnh cũ &amp; phụ kiện uy tín
               </span>
             </div>
@@ -113,20 +113,20 @@ export default function Navbar() {
           </div>
 
           {/* Action Contact Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Mobile search toggle */}
             <button
               onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-              className="md:hidden p-2 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900"
+              className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer"
               aria-label="Tìm kiếm"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Hotline call */}
             <a
               href="tel:0986834449"
-              className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 hover:border-amber-500 text-slate-700 hover:text-slate-900 transition-all group"
+              className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 hover:border-amber-500 text-slate-700 hover:text-slate-900 transition-all group shrink-0"
             >
               <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
                 <Phone className="w-4 h-4" />
@@ -142,9 +142,9 @@ export default function Navbar() {
               href="https://zalo.me/0986834449"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs sm:text-sm shadow hover:shadow-blue-500/20 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm shadow hover:shadow-blue-500/20 active:scale-95 transition-all whitespace-nowrap shrink-0"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 shrink-0 fill-current" />
               <span>Chat Zalo</span>
             </a>
           </div>
