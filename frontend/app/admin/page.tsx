@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Camera,
@@ -54,7 +54,6 @@ export default function AdminPage() {
 
   // Product management state
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -148,41 +147,37 @@ export default function AdminPage() {
   useEffect(() => {
     const savedToken = localStorage.getItem('mayanhtop1_admin_token');
     const savedUser = localStorage.getItem('mayanhtop1_admin_user');
-    if (savedToken) {
-      setToken(savedToken);
-      if (savedUser) setAdminUser(savedUser);
-    }
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (savedToken) setToken(savedToken);
+    if (savedUser) setAdminUser(savedUser);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // Fetch data when authenticated
   useEffect(() => {
+    let isSubscribed = true;
     if (token) {
-      loadProductsList();
-      loadCategoriesList();
+      fetchProducts({ limit: 500 })
+        .then((res) => {
+          if (isSubscribed) setProducts(res.products || FALLBACK_PRODUCTS);
+        })
+        .catch((err) => {
+          console.error(err);
+          if (isSubscribed) setProducts(FALLBACK_PRODUCTS);
+        });
+
+      fetchCategories()
+        .then((cats) => {
+          if (isSubscribed) setCategories(cats || FALLBACK_CATEGORIES);
+        })
+        .catch(() => {
+          if (isSubscribed) setCategories(FALLBACK_CATEGORIES);
+        });
     }
+    return () => {
+      isSubscribed = false;
+    };
   }, [token]);
-
-  const loadProductsList = async () => {
-    setIsLoadingProducts(true);
-    try {
-      const res = await fetchProducts({ limit: 500 });
-      setProducts(res.products || FALLBACK_PRODUCTS);
-    } catch (err) {
-      console.error(err);
-      setProducts(FALLBACK_PRODUCTS);
-    } finally {
-      setIsLoadingProducts(false);
-    }
-  };
-
-  const loadCategoriesList = async () => {
-    try {
-      const cats = await fetchCategories();
-      setCategories(cats || FALLBACK_CATEGORIES);
-    } catch (err) {
-      setCategories(FALLBACK_CATEGORIES);
-    }
-  };
 
   // Auth login handler
   const handleLogin = async (e: React.FormEvent) => {
@@ -845,7 +840,7 @@ export default function AdminPage() {
                   options={filterStatusOptions}
                   value={filterStatus}
                   onChange={(val) => {
-                    setFilterStatus(val as any);
+                    setFilterStatus(val as 'all' | 'available' | 'sold');
                     setAdminPage(1);
                   }}
                 />

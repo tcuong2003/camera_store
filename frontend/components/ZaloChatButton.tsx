@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useSyncExternalStore } from 'react';
 import { MessageSquare, CheckCircle2, Copy } from 'lucide-react';
 
 interface ZaloChatButtonProps {
@@ -9,36 +9,31 @@ interface ZaloChatButtonProps {
   hotline?: string;
 }
 
+const emptySubscribe = () => () => {};
+const getLocationHref = () => (typeof window !== 'undefined' ? window.location.href : '');
+const getServerLocationHref = () => '';
+
 export default function ZaloChatButton({
   productName,
   slug,
   hotline = '0986834449',
 }: ZaloChatButtonProps) {
   const [copiedLinkOnly, setCopiedLinkOnly] = useState(false);
+  const currentUrl = useSyncExternalStore(emptySubscribe, getLocationHref, getServerLocationHref);
 
-  const getFullMessage = () => {
-    const currentUrl =
-      typeof window !== 'undefined' && window.location.href
-        ? window.location.href
-        : `https://mayanhtop1.com/san-pham/${slug}`;
-    return `Chào shop MÁY ẢNH TOP 1, mình đang quan tâm máy: ${productName}\nLink sản phẩm: ${currentUrl}\nCho mình xin thêm ảnh chi tiết và tư vấn nhé!`;
-  };
+  const fullMessage = useMemo(() => {
+    const link = currentUrl || `https://mayanhtop1.com/san-pham/${slug}`;
+    return `Chào shop MÁY ẢNH TOP 1, mình đang quan tâm máy: ${productName}\nLink sản phẩm: ${link}\nCho mình xin thêm ảnh chi tiết và tư vấn nhé!`;
+  }, [currentUrl, productName, slug]);
 
-  const getZaloUrl = () => {
-    return `https://zalo.me/${hotline}?text=${encodeURIComponent(getFullMessage())}`;
-  };
-
-  const [zaloUrl, setZaloUrl] = useState(() => getZaloUrl());
-
-  useEffect(() => {
-    setZaloUrl(getZaloUrl());
-  }, [productName, slug, hotline]);
+  const zaloUrl = useMemo(() => {
+    return `https://zalo.me/${hotline}?text=${encodeURIComponent(fullMessage)}`;
+  }, [hotline, fullMessage]);
 
   const handleZaloClick = async () => {
     try {
-      const message = getFullMessage();
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(message);
+        await navigator.clipboard.writeText(fullMessage);
       }
     } catch (e) {
       console.warn('Clipboard write failed:', e);
@@ -47,12 +42,9 @@ export default function ZaloChatButton({
 
   const handleCopyLinkOnly = async () => {
     try {
-      const currentUrl =
-        typeof window !== 'undefined' && window.location.href
-          ? window.location.href
-          : `https://mayanhtop1.com/san-pham/${slug}`;
+      const linkToCopy = currentUrl || (typeof window !== 'undefined' ? window.location.href : `https://mayanhtop1.com/san-pham/${slug}`);
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(currentUrl);
+        await navigator.clipboard.writeText(linkToCopy);
         setCopiedLinkOnly(true);
         setTimeout(() => setCopiedLinkOnly(false), 2500);
       }

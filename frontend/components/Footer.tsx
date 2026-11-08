@@ -59,7 +59,7 @@ export default function Footer() {
             <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Cách thức mua hàng</h4>
             <ul className="text-xs text-slate-500 space-y-2">
               <li>1. Xem danh mục album máy ảnh ưng ý theo tầm giá và hãng.</li>
-              <li>2. Bấm nút <strong className="text-slate-800">"Nhắn Zalo"</strong> hoặc chụp màn hình sản phẩm.</li>
+              <li>2. Bấm nút <strong className="text-slate-800">&ldquo;Nhắn Zalo&rdquo;</strong> hoặc chụp màn hình sản phẩm.</li>
               <li>3. Gửi cho chủ shop qua Zalo <strong className="text-slate-800 font-mono">0986.834.449</strong> để kiểm tra tình trạng máy thực tế.</li>
               <li>4. Nhận máy trực tiếp tại shop hoặc ship COD tận nhà an toàn.</li>
             </ul>

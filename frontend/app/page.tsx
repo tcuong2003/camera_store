@@ -137,7 +137,7 @@ function CatalogContent() {
       {searchKeyword && (
         <div className="flex items-center justify-between bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm text-slate-800">
           <span>
-            Kết quả tìm kiếm cho: <strong className="text-amber-700 font-mono">"{searchKeyword}"</strong> ({totalCount} máy)
+            Kết quả tìm kiếm cho: <strong className="text-amber-700 font-mono">&ldquo;{searchKeyword}&rdquo;</strong> ({totalCount} máy)
           </span>
           <button
             onClick={() => {

@@ -139,7 +139,7 @@ export default function RichTextEditor({
     return stripped.length === 0;
   };
 
-  const showPlaceholder = isContentEmpty(lastEmittedHtmlRef.current);
+  const showPlaceholder = isContentEmpty(value);
 
   return (
     <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-amber-500/30 focus-within:border-amber-500 transition-all">
