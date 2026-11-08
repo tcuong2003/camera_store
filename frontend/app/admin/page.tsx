@@ -629,7 +629,7 @@ export default function AdminPage() {
               className="w-16 h-16 object-contain mx-auto mb-2"
             />
             <h1 className="text-2xl font-black text-slate-900">Quản trị MÁY ẢNH TOP 1</h1>
-            <p className="text-xs text-slate-500 whitespace-nowrap">
+            <p className="text-xs text-slate-500">
               Đăng nhập để thêm, sửa, xóa máy ảnh và cập nhật album ảnh ngoại hình
             </p>
           </div>
@@ -698,7 +698,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 overflow-x-clip">
       {/* Admin Dashboard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>

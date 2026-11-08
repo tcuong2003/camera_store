@@ -58,10 +58,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className="scroll-smooth">
-      <body className="bg-[#f4f5f7] text-slate-800 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-white">
+    <html lang="vi" className="scroll-smooth overflow-x-clip">
+      <body className="bg-[#f4f5f7] text-slate-800 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-white overflow-x-clip max-w-full">
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 w-full max-w-full overflow-x-clip min-w-0">{children}</main>
         <Footer />
         <FloatingContact />
       </body>

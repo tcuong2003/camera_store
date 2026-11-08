@@ -146,7 +146,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
   };
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 w-full max-w-full overflow-hidden min-w-0">
       {/* Category Pills Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-slate-800 font-bold text-sm sm:text-base">
@@ -157,7 +157,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
         {isFiltered && (
           <button
             onClick={resetFilters}
-            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-semibold px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors"
+            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-semibold px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Xóa tất cả lọc</span>
@@ -166,7 +166,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
       </div>
 
       {/* Category Pills List */}
-      <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-thin overscroll-x-contain touch-pan-x">
+      <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-thin overscroll-x-contain touch-pan-x w-full max-w-full">
         {allCategoryPills.map((opt) => {
           const active = isCatActive(opt);
           return (

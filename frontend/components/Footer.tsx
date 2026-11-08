@@ -3,7 +3,7 @@ import { Phone, MessageSquare, MapPin } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="bg-white border-t border-slate-200 text-slate-600 pt-10 pb-24 sm:pb-10 mt-14 shadow-inner">
+    <footer className="bg-white border-t border-slate-200 text-slate-600 pt-10 pb-24 sm:pb-10 mt-14 shadow-inner w-full max-w-full overflow-hidden">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Footer Main Columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10">
@@ -44,9 +44,9 @@ export default function Footer() {
               </a>
               <div className="flex items-start gap-2 text-slate-600">
                 <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <span>
+                <span className="break-words">
                   Địa chỉ xem &amp; test máy trực tiếp:{' '}
-                  <strong className="text-slate-800">
+                  <strong className="text-slate-800 break-words">
                     38/49 Nguyễn Công Hoan, Phường 7, Quận Phú Nhuận, TP. Hồ Chí Minh
                   </strong>
                 </span>

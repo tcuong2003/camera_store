@@ -70,7 +70,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const { product, related } = data;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8">
+    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 overflow-x-clip">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
         <Link href="/" className="hover:text-amber-600 flex items-center gap-1 transition-colors font-medium">

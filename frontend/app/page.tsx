@@ -122,9 +122,9 @@ function CatalogContent() {
   }, [products]);
 
   return (
-    <div ref={catalogTopRef} className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
+    <div ref={catalogTopRef} className="w-full max-w-[1600px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6 overflow-x-clip">
       {/* 1. Filter Section (Danh mục sản phẩm) */}
-      <section>
+      <section className="w-full max-w-full overflow-hidden">
         <FilterBar
           filters={filters}
           onChange={handleFilterChange}
@@ -152,7 +152,7 @@ function CatalogContent() {
       )}
 
       {/* 2. Product Grid Section with 2 Sub-filters (Khoảng giá & Thương hiệu) */}
-      <section className="space-y-4">
+      <section className="space-y-4 w-full max-w-full overflow-hidden">
         {/* Header Bar: Title + 2 Custom Dropdowns (Khoảng giá & Thương hiệu) + Sắp xếp */}
         <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Left Title */}
@@ -170,7 +170,7 @@ function CatalogContent() {
           </div>
 
           {/* Right: Custom Dropdowns (Khoảng giá, Thương hiệu, Sắp xếp) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 md:flex md:items-center gap-2.5 sm:gap-3 w-full md:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:flex md:items-center gap-2.5 sm:gap-3 w-full md:w-auto min-w-0">
             {/* Bộ lọc 1: Khoảng giá (Từ đâu đến đâu) */}
             <CustomDropdown
               options={PRICE_OPTIONS}

@@ -85,8 +85,8 @@ export default function Navbar() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm overflow-hidden">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-3">
           {/* Logo & Store Title */}
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink min-w-0 group">
@@ -96,10 +96,10 @@ export default function Navbar() {
               className="h-9 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200 shrink-0"
             />
             <div className="flex flex-col min-w-0">
-              <span className="font-black text-base sm:text-2xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+              <span className="font-black text-sm sm:text-2xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                 MÁY ẢNH TOP 1
               </span>
-              <span className="text-[10px] sm:text-xs text-slate-500 font-medium truncate">
+              <span className="hidden min-[400px]:inline sm:inline text-[10px] sm:text-xs text-slate-500 font-medium truncate max-w-[130px] sm:max-w-none">
                 Chuyên máy ảnh cũ &amp; phụ kiện uy tín
               </span>
             </div>
@@ -142,7 +142,7 @@ export default function Navbar() {
               href="https://zalo.me/0986834449"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm shadow hover:shadow-blue-500/20 active:scale-95 transition-all whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm shadow hover:shadow-blue-500/20 active:scale-95 transition-all whitespace-nowrap shrink-0"
             >
               <MessageSquare className="w-4 h-4 shrink-0 fill-current" />
               <span>Chat Zalo</span>
