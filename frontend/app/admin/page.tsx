@@ -59,6 +59,25 @@ export default function AdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
 
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ type, message });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   // Admin filter and search state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBrand, setFilterBrand] = useState('all');
@@ -290,8 +309,10 @@ export default function AdminPage() {
     try {
       await adminUpdateProduct(p._id, { isAvailable: updatedStatus }, token || '');
       setProducts(products.map((item) => (item._id === p._id ? { ...item, isAvailable: updatedStatus } : item)));
+      showToast(`Đã chuyển trạng thái sang "${updatedStatus ? 'Đang bán' : 'Đã chốt bán'}"`, 'info');
     } catch (err) {
       setProducts(products.map((item) => (item._id === p._id ? { ...item, isAvailable: updatedStatus } : item)));
+      showToast(`Đã chuyển trạng thái sang "${updatedStatus ? 'Đang bán' : 'Đã chốt bán'}"`, 'info');
     }
   };
 
@@ -407,22 +428,24 @@ export default function AdminPage() {
         const res = await adminCreateProduct(payload, token || '');
         if (res.success && res.product) {
           setProducts([res.product, ...products]);
+          showToast(`Đã thêm mới máy ảnh "${res.product.name}" thành công!`, 'success');
         } else {
-          alert('Không thể lưu sản phẩm lên máy chủ: ' + (res.message || 'Lỗi không xác định'));
+          showToast('Không thể lưu sản phẩm lên máy chủ: ' + (res.message || 'Lỗi không xác định'), 'error');
           return;
         }
       } else if (modalMode === 'edit' && editingProduct) {
         const res = await adminUpdateProduct(editingProduct._id, payload, token || '');
         if (res.success && res.product) {
           setProducts(products.map((p) => (p._id === editingProduct._id ? res.product : p)));
+          showToast(`Đã lưu cập nhật cho máy ảnh "${res.product.name}"!`, 'success');
         } else {
-          alert('Không thể cập nhật sản phẩm: ' + (res.message || 'Lỗi không xác định'));
+          showToast('Không thể cập nhật sản phẩm: ' + (res.message || 'Lỗi không xác định'), 'error');
           return;
         }
       }
       setIsModalOpen(false);
     } catch (err) {
-      alert('Lỗi lưu sản phẩm: ' + String(err));
+      showToast('Lỗi lưu sản phẩm: ' + String(err), 'error');
     }
   };
 
@@ -439,17 +462,20 @@ export default function AdminPage() {
   // Execute delete after user confirms in dialog
   const handleConfirmDelete = async () => {
     if (!deleteDialog.productId) return;
+    const deletedName = deleteDialog.productName;
     setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
 
     try {
       await adminDeleteProduct(deleteDialog.productId, token || '');
       setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
       setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
+      showToast(`Đã xóa thành công "${deletedName}" khỏi kho hàng!`, 'success');
     } catch (err) {
       console.error(err);
       // Fallback local remove
       setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
       setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
+      showToast(`Đã xóa thành công "${deletedName}" khỏi kho hàng!`, 'success');
     }
   };
 
@@ -1353,6 +1379,38 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* GLOBAL TOAST NOTIFICATION */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-[60] flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl border border-slate-700/60 animate-in slide-in-from-top-4 fade-in duration-200 max-w-sm sm:max-w-md">
+          {toast.type === 'success' && (
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            </div>
+          )}
+          {toast.type === 'info' && (
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+              <AlertCircle className="w-5 h-5 text-amber-400" />
+            </div>
+          )}
+          {toast.type === 'error' && (
+            <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+              <AlertCircle className="w-5 h-5 text-rose-400" />
+            </div>
+          )}
+          <div className="flex-1 text-xs sm:text-sm font-medium text-slate-100 leading-snug">
+            {toast.message}
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+            title="Đóng thông báo"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>
