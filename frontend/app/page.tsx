@@ -20,10 +20,10 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const catalogTopRef = useRef<HTMLDivElement>(null);
 
-  const [products, setProducts] = useState<Product[]>(() => FALLBACK_PRODUCTS.slice(0, 25));
-  const [isLoading, setIsLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState<number>(() => FALLBACK_PRODUCTS.length);
-  const [totalPages, setTotalPages] = useState<number>(() => Math.ceil(FALLBACK_PRODUCTS.length / 25));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
@@ -65,6 +65,11 @@ function CatalogContent() {
         }
       } catch (err) {
         console.error('Failed to load products:', err);
+        if (isMounted) {
+          setProducts(FALLBACK_PRODUCTS.slice(0, 25));
+          setTotalCount(FALLBACK_PRODUCTS.length);
+          setTotalPages(Math.ceil(FALLBACK_PRODUCTS.length / 25));
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);

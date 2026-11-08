@@ -85,6 +85,7 @@ const getProducts = async (req, res) => {
       const limitNum = parseInt(limit, 10) || 25;
       const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
+      res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
       return res.status(200).json({
         success: true,
         count: paginated.length,
@@ -143,12 +144,17 @@ const getProducts = async (req, res) => {
     const limitNum = parseInt(limit, 10) || 25;
     const skip = (pageNum - 1) * limitNum;
 
-    const total = await Product.countDocuments(query);
-    const products = await Product.find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limitNum);
+    // Run count and query in parallel with lean documents for maximum speed
+    const [total, products] = await Promise.all([
+      Product.countDocuments(query),
+      Product.find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+    ]);
 
+    res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     return res.status(200).json({
       success: true,
       count: products.length,

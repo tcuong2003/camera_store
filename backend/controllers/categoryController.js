@@ -39,7 +39,7 @@ const getCategories = async (req, res) => {
     const query = { isActive: true };
     if (type) query.type = type;
 
-    const categories = await Category.find(query).sort({ type: 1, order: 1 });
+    const categories = await Category.find(query).sort({ type: 1, order: 1 }).lean();
     
     // Also merge any categories from products
     try {
@@ -64,6 +64,7 @@ const getCategories = async (req, res) => {
     let result = categories;
     if (type) result = result.filter((c) => c.type === type);
 
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     return res.status(200).json({
       success: true,
       categories: result,

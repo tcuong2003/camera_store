@@ -54,6 +54,7 @@ export default function AdminPage() {
 
   // Product management state
   const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -157,22 +158,34 @@ export default function AdminPage() {
   useEffect(() => {
     let isSubscribed = true;
     if (token) {
-      fetchProducts({ limit: 500 })
-        .then((res) => {
-          if (isSubscribed) setProducts(res.products || FALLBACK_PRODUCTS);
-        })
-        .catch((err) => {
-          console.error(err);
-          if (isSubscribed) setProducts(FALLBACK_PRODUCTS);
-        });
+      setIsLoading(true);
+      Promise.allSettled([
+        fetchProducts({ limit: 500 }),
+        fetchCategories(),
+      ])
+        .then(([prodResult, catResult]) => {
+          if (!isSubscribed) return;
+          if (prodResult.status === 'fulfilled') {
+            setProducts(prodResult.value.products || FALLBACK_PRODUCTS);
+          } else {
+            console.error('Failed to fetch admin products:', prodResult.reason);
+            setProducts(FALLBACK_PRODUCTS);
+          }
 
-      fetchCategories()
-        .then((cats) => {
-          if (isSubscribed) setCategories(cats || FALLBACK_CATEGORIES);
+          if (catResult.status === 'fulfilled') {
+            setCategories(catResult.value || FALLBACK_CATEGORIES);
+          } else {
+            console.error('Failed to fetch admin categories:', catResult.reason);
+            setCategories(FALLBACK_CATEGORIES);
+          }
         })
-        .catch(() => {
-          if (isSubscribed) setCategories(FALLBACK_CATEGORIES);
+        .finally(() => {
+          if (isSubscribed) {
+            setIsLoading(false);
+          }
         });
+    } else {
+      setIsLoading(false);
     }
     return () => {
       isSubscribed = false;
@@ -739,7 +752,11 @@ export default function AdminPage() {
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng máy ảnh</span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">{totalCount}</div>
+            {isLoading ? (
+              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">{totalCount}</div>
+            )}
           </div>
           <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
             <Camera className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -750,7 +767,11 @@ export default function AdminPage() {
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đang sẵn hàng</span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight mt-1">{availableCount}</div>
+            {isLoading ? (
+              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight mt-1">{availableCount}</div>
+            )}
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
             <PackageCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -761,7 +782,11 @@ export default function AdminPage() {
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đã chốt bán</span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-500 tracking-tight mt-1">{soldCount}</div>
+            {isLoading ? (
+              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-500 tracking-tight mt-1">{soldCount}</div>
+            )}
           </div>
           <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
             <PackageX className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -772,9 +797,13 @@ export default function AdminPage() {
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Thương hiệu</span>
-            <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 tracking-tight mt-1">
-              {brandCount} <span className="text-sm font-semibold text-slate-500">hãng</span>
-            </div>
+            {isLoading ? (
+              <div className="h-8 w-20 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 tracking-tight mt-1">
+                {brandCount} <span className="text-sm font-semibold text-slate-500">hãng</span>
+              </div>
+            )}
           </div>
           <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
             <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -893,7 +922,39 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {paginatedProducts.length === 0 ? (
+                  {isLoading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={`table-skel-${i}`} className="animate-pulse">
+                        <td className="py-3.5 px-4 text-left">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-slate-200 shrink-0" />
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="h-4 bg-slate-200 rounded w-48 max-w-full" />
+                              <div className="h-3 bg-slate-200 rounded w-28" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-6 w-16 bg-slate-200 rounded-full mx-auto" />
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-5 w-24 bg-slate-200 rounded mx-auto" />
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-5 w-14 bg-slate-200 rounded mx-auto" />
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="h-6 w-20 bg-slate-200 rounded-full mx-auto" />
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+                            <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : paginatedProducts.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400">
                         Không tìm thấy sản phẩm nào phù hợp với bộ lọc.
@@ -913,6 +974,7 @@ export default function AdminPage() {
                               <Link
                                 href={`/san-pham/${p.slug}`}
                                 target="_blank"
+                                prefetch={false}
                                 className="font-bold text-slate-900 hover:text-amber-600 line-clamp-2 flex items-center gap-1.5 transition-colors"
                               >
                                 <span>{p.name}</span>

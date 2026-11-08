@@ -35,6 +35,18 @@ export const formatVND = (price: number): string => {
   return `${formatted}đ`;
 };
 
+// In-memory cache for ultra-fast instant UI rendering
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const apiCache = new Map<string, CacheEntry<unknown>>();
+const CACHE_TTL = 45000; // 45 seconds cache
+
+export const clearApiCache = () => {
+  apiCache.clear();
+};
+
 // Generate Zalo chat link with optional product URL
 export const getZaloChatUrl = (productName?: string, productUrl?: string): string => {
   const hotline = process.env.NEXT_PUBLIC_HOTLINE || '0986834449';
@@ -48,28 +60,37 @@ export const getZaloChatUrl = (productName?: string, productUrl?: string): strin
 };
 
 // Fetch products with filters
-export const fetchProducts = async (params: FilterParams = {}): Promise<ProductsResponse> => {
-  try {
-    const query = new URLSearchParams();
-    if (params.search) query.append('search', params.search);
-    if (params.brand && params.brand !== 'all') query.append('brand', params.brand);
-    if (params.priceCategory && params.priceCategory !== 'all') query.append('priceCategory', params.priceCategory);
-    if (params.category && params.category !== 'all') query.append('category', params.category);
-    if (params.deviceType && params.deviceType !== 'all') query.append('deviceType', params.deviceType);
-    if (params.sort) query.append('sort', params.sort);
-    if (params.page) query.append('page', params.page.toString());
-    if (params.limit) query.append('limit', params.limit.toString());
+export const fetchProducts = async (params: FilterParams = {}, forceRefresh = false): Promise<ProductsResponse> => {
+  const query = new URLSearchParams();
+  if (params.search) query.append('search', params.search);
+  if (params.brand && params.brand !== 'all') query.append('brand', params.brand);
+  if (params.priceCategory && params.priceCategory !== 'all') query.append('priceCategory', params.priceCategory);
+  if (params.category && params.category !== 'all') query.append('category', params.category);
+  if (params.deviceType && params.deviceType !== 'all') query.append('deviceType', params.deviceType);
+  if (params.sort) query.append('sort', params.sort);
+  if (params.page) query.append('page', params.page.toString());
+  if (params.limit) query.append('limit', params.limit.toString());
 
+  const cacheKey = `products:${query.toString()}`;
+  if (!forceRefresh) {
+    const cached = apiCache.get(cacheKey) as CacheEntry<ProductsResponse> | undefined;
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+  }
+
+  try {
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!res.ok) {
       throw new Error(`API responded with ${res.status}`);
     }
 
-    return await res.json();
+    const data: ProductsResponse = await res.json();
+    apiCache.set(cacheKey, { data, timestamp: Date.now() });
+    return data;
   } catch (error) {
     console.warn('Backend API unavailable, using resilient fallback data:', error);
     // Filter mock data locally
@@ -133,14 +154,21 @@ export const fetchProducts = async (params: FilterParams = {}): Promise<Products
 
 // Fetch single product by slug
 export const fetchProductBySlug = async (slug: string): Promise<SingleProductResponse | null> => {
+  const cacheKey = `product:${slug}`;
+  const cached = apiCache.get(cacheKey) as CacheEntry<SingleProductResponse> | undefined;
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/products/slug/${slug}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      apiCache.set(cacheKey, { data, timestamp: Date.now() });
+      return data;
     }
   } catch (error) {
     console.warn('Backend API unavailable for slug, checking fallback data:', error);
@@ -163,17 +191,26 @@ export const fetchProductBySlug = async (slug: string): Promise<SingleProductRes
 };
 
 // Fetch categories
-export const fetchCategories = async (type?: string): Promise<Category[]> => {
+export const fetchCategories = async (type?: string, forceRefresh = false): Promise<Category[]> => {
+  const cacheKey = `categories:${type || 'all'}`;
+  if (!forceRefresh) {
+    const cached = apiCache.get(cacheKey) as CacheEntry<Category[]> | undefined;
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+  }
+
   try {
     const query = type ? `?type=${type}` : '';
     const res = await fetch(`${API_BASE_URL}/categories${query}`, {
-      next: { revalidate: 60 },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (res.ok) {
       const data = await res.json();
-      return data.categories || [];
+      const cats = data.categories || [];
+      apiCache.set(cacheKey, { data: cats, timestamp: Date.now() });
+      return cats;
     }
   } catch (error) {
     console.warn('Failed to fetch categories from API, using fallback:', error);
@@ -212,6 +249,7 @@ export const adminUploadImages = async (files: File[], token: string) => {
 };
 
 export const adminCreateProduct = async (productData: Partial<Product>, token: string) => {
+  clearApiCache();
   const res = await fetch(`${API_BASE_URL}/products`, {
     method: 'POST',
     headers: {
@@ -224,6 +262,7 @@ export const adminCreateProduct = async (productData: Partial<Product>, token: s
 };
 
 export const adminUpdateProduct = async (id: string, productData: Partial<Product>, token: string) => {
+  clearApiCache();
   const res = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: 'PUT',
     headers: {
@@ -236,6 +275,7 @@ export const adminUpdateProduct = async (id: string, productData: Partial<Produc
 };
 
 export const adminDeleteProduct = async (id: string, token: string) => {
+  clearApiCache();
   const res = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: 'DELETE',
     headers: {
@@ -258,6 +298,7 @@ export const adminCreateCategory = async (
   categoryData: { name: string; type: string; order?: number },
   token: string
 ) => {
+  clearApiCache();
   const res = await fetch(`${API_BASE_URL}/categories`, {
     method: 'POST',
     headers: {
