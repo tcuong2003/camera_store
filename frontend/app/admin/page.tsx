@@ -101,16 +101,29 @@ export default function AdminPage() {
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<'brand' | 'price' | 'category' | 'device_type'>('brand');
 
-  // Lock background body scroll when modal is open
+  // Custom confirmation dialog state for product deletion
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    productId: string;
+    productName: string;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    productId: '',
+    productName: '',
+    isDeleting: false,
+  });
+
+  // Lock background body scroll when modal or confirm dialog is open
   useEffect(() => {
-    if (isModalOpen) {
+    if (isModalOpen || deleteDialog.isOpen) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = originalOverflow;
       };
     }
-  }, [isModalOpen]);
+  }, [isModalOpen, deleteDialog.isOpen]);
 
   // Load token from localStorage
   useEffect(() => {
@@ -413,16 +426,36 @@ export default function AdminPage() {
     }
   };
 
-  // Delete product
-  const handleDeleteProduct = async (id: string, name: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${name}" khỏi kho?`)) return;
+  // Trigger open custom delete confirmation dialog
+  const promptDeleteProduct = (id: string, name: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      productId: id,
+      productName: name,
+      isDeleting: false,
+    });
+  };
+
+  // Execute delete after user confirms in dialog
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog.productId) return;
+    setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
 
     try {
-      await adminDeleteProduct(id, token || '');
-      setProducts(products.filter((p) => p._id !== id));
+      await adminDeleteProduct(deleteDialog.productId, token || '');
+      setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
+      setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
     } catch (err) {
-      setProducts(products.filter((p) => p._id !== id));
+      console.error(err);
+      // Fallback local remove
+      setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
+      setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
     }
+  };
+
+  const handleCancelDelete = () => {
+    if (deleteDialog.isDeleting) return;
+    setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
   };
 
   // Category Add
@@ -910,7 +943,7 @@ export default function AdminPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteProduct(p._id, p.name)}
+                              onClick={() => promptDeleteProduct(p._id, p.name)}
                               className="p-2 rounded-xl bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 transition-colors shadow-2xs cursor-pointer"
                               title="Xóa máy khỏi kho"
                             >
@@ -1246,6 +1279,79 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRM DELETE DIALOG (CENTERED & BRAND SYNCHRONIZED) */}
+      {deleteDialog.isOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
+          onClick={handleCancelDelete}
+        >
+          <div 
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-7 shadow-2xl relative text-center animate-in zoom-in-95 duration-150 overflow-hidden my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close 'X' Button */}
+            <button
+              type="button"
+              onClick={handleCancelDelete}
+              disabled={deleteDialog.isDeleting}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              title="Đóng"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Trash Warning Icon Circle */}
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-xs">
+              <Trash2 className="w-8 h-8 text-rose-600" />
+            </div>
+
+            {/* Dialog Heading */}
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-2">
+              Xác Nhận Xóa Sản Phẩm?
+            </h3>
+
+            {/* Description with Highlighted Product Name */}
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6 px-1">
+              Bạn có chắc chắn muốn xóa máy ảnh này khỏi kho hàng không?
+              <span className="block my-2.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-sm truncate shadow-2xs">
+                &ldquo;{deleteDialog.productName}&rdquo;
+              </span>
+              Thao tác này sẽ gỡ máy vĩnh viễn khỏi danh mục hiển thị.
+            </p>
+
+            {/* Buttons: Cancel & Confirm Delete */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCancelDelete}
+                disabled={deleteDialog.isDeleting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteDialog.isDeleting}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-rose-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {deleteDialog.isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Đang xóa...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xác nhận xóa</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
