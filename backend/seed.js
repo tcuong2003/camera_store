@@ -2553,12 +2553,14 @@ const seedData = async () => {
     console.log('Seeded categories successfully!');
 
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('admin123', salt);
+    const adminPassword = process.env.ADMIN_PASSWORD || 'mayanhtop1@2026';
+    const passwordHash = await bcrypt.hash(adminPassword, salt);
     await Admin.create({
-      username: 'admin',
+      username: process.env.ADMIN_USERNAME || 'admin',
       passwordHash,
+      name: 'Chủ Cửa Hàng - MÁY ẢNH TOP 1',
     });
-    console.log('Seeded default admin (admin / admin123)');
+    console.log(`Seeded default admin (${process.env.ADMIN_USERNAME || 'admin'} / ${adminPassword})`);
 
     console.log('Database seeding completed successfully!');
     process.exit(0);
