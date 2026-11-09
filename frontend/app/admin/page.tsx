@@ -39,6 +39,92 @@ import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '../..
 import CustomDropdown, { DropdownOption } from '../../components/CustomDropdown';
 import RichTextEditor from '../../components/RichTextEditor';
 
+// Helper to sanitize image URLs (e.g. rewrite Cloudinary .heic/.heif to .jpg for universal rendering)
+const sanitizeImageUrl = (url: string) => {
+  if (!url) return '';
+  return url.replace(/\.(heic|heif)$/i, '.jpg');
+};
+
+// Client-side helper to normalize and compress standard images (screenshots, phone photos, crops, JFIF, PNG, WebP)
+// HEIC/HEIF/RAW files pass through directly so backend/Cloudinary can transcode them to JPG
+const compressAndNormalizeImage = async (file: File): Promise<File> => {
+  const lowerName = file.name.toLowerCase();
+  const isHeicOrRaw =
+    /\.(heic|heif|raw|dng|cr2|nef|arw)$/i.test(lowerName) ||
+    file.type === 'image/heic' ||
+    file.type === 'image/heif';
+
+  if (isHeicOrRaw) {
+    return file; // Cloudinary backend will transcode HEIC/RAW to JPG
+  }
+
+  // Preserve animated GIFs and SVGs
+  if (lowerName.endsWith('.gif') || lowerName.endsWith('.svg') || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 2400; // Ultra crisp 4K resolution
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          // Fill white background for transparent PNG/canvas converted to JPEG
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || 'photo';
+                const compressedFile = new File([blob], `${baseName}.jpg`, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.88
+          );
+        } catch {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function AdminPage() {
   // Auth state
   const [token, setToken] = useState<string | null>(null);
@@ -305,7 +391,7 @@ export default function AdminPage() {
     setDeviceType(p.deviceType || 'Mirrorless');
     setAccessories(p.accessories || '');
     setWarranty(p.warranty || '');
-    setImages(p.images || []);
+    setImages((p.images || []).map((u) => sanitizeImageUrl(u)));
     setIsAvailable(p.isAvailable);
     setFeatured(p.featured || false);
     setIsModalOpen(true);
@@ -357,15 +443,22 @@ export default function AdminPage() {
     }
 
     setUploadingImages(true);
-    setUploadProgress(20);
+    setUploadProgress(15);
 
     try {
-      const res = await adminUploadImages(files, token || '');
-      setUploadProgress(80);
+      // Normalize and optimize images on client side (converts standard screenshots/crops/photos to lightweight JPG)
+      const optimizedFiles = await Promise.all(
+        files.map((f) => compressAndNormalizeImage(f))
+      );
+      setUploadProgress(40);
+
+      const res = await adminUploadImages(optimizedFiles, token || '');
+      setUploadProgress(85);
 
       if (res.success && res.urls && res.urls.length > 0) {
-        setImages((prev) => [...prev, ...res.urls]);
-        showToast(`Đã tải lên ${res.urls.length} ảnh lên hệ thống thành công!`, 'success');
+        const cleanUrls = res.urls.map((url: string) => sanitizeImageUrl(url));
+        setImages((prev) => [...prev, ...cleanUrls]);
+        showToast(`Đã tải lên ${cleanUrls.length} ảnh lên hệ thống thành công!`, 'success');
       } else {
         alert(res.message || 'Lỗi tải ảnh lên máy chủ. Vui lòng kiểm tra lại cấu hình Cloudinary / API.');
       }
@@ -377,9 +470,45 @@ export default function AdminPage() {
       setTimeout(() => {
         setUploadingImages(false);
         setUploadProgress(0);
-      }, 500);
+      }, 400);
     }
   };
+
+  // Listen for Clipboard Paste (Cmd+V / Ctrl+V) to support screenshots & cropped images directly
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (!isModalOpen) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const pastedFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            const ext = file.type.split('/')[1] || 'png';
+            const renamedFile = new File([file], `screenshot-${Date.now()}-${i + 1}.${ext}`, {
+              type: file.type || 'image/png',
+            });
+            pastedFiles.push(renamedFile);
+          }
+        }
+      }
+
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        showToast(`Đã nhận ${pastedFiles.length} ảnh chụp màn hình từ bộ nhớ tạm!`, 'info');
+        await processFiles(pastedFiles);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [isModalOpen, images]);
 
   const removeImage = (index: number) => {
     setImages(images.filter((_, idx) => idx !== index));
@@ -1255,16 +1384,16 @@ export default function AdminPage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,.heic,.heif,.jfif,.webp,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.avif,.svg,.dng,.raw,.cr2,.nef,.arw"
                     onChange={handleFileInput}
                     className="hidden"
                   />
                   <Upload className="w-8 h-8 mx-auto text-amber-600 mb-2" />
                   <p className="text-sm font-bold text-slate-800">
-                    Kéo &amp; thả 5 - 10 ảnh vào đây, hoặc <span className="text-amber-600 underline">bấm chọn ảnh</span>
+                    Kéo &amp; thả ảnh vào đây, <span className="text-amber-600 underline">bấm chọn ảnh</span> hoặc dán (Ctrl+V / Cmd+V)
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Hỗ trợ JPG, PNG, WEBP tự động nén
+                    Hỗ trợ tất cả định dạng: JPG, PNG, WEBP, HEIC (iPhone), JFIF, ảnh chụp màn hình, ảnh cắt... (Tối đa 15 ảnh)
                   </p>
                 </div>
 
@@ -1272,7 +1401,7 @@ export default function AdminPage() {
                 {uploadingImages && (
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-amber-600 font-semibold">
-                      <span>Đang tải ảnh lên...</span>
+                      <span>Đang nén &amp; tải ảnh lên hệ thống...</span>
                       <span>{uploadProgress}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1293,8 +1422,16 @@ export default function AdminPage() {
                         className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group shadow-2xs"
                       >
                         <img
-                          src={imgUrl}
+                          src={sanitizeImageUrl(imgUrl)}
                           alt={`Ảnh ${idx + 1}`}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                              target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                            } else {
+                              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80';
+                            }
+                          }}
                           className="w-full h-full object-cover"
                         />
                         <button

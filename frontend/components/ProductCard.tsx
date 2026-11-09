@@ -26,7 +26,8 @@ const stripHtml = (html?: string): string => {
 };
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const thumbnail = product.images?.[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
+  const rawThumbnail = product.images?.[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
+  const thumbnail = rawThumbnail.replace(/\.(heic|heif)$/i, '.jpg');
   const imageCount = product.images?.length || 1;
   const plainDesc = stripHtml(product.description);
 
@@ -45,7 +46,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           alt={product.name}
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
+            const target = e.target as HTMLImageElement;
+            if (target.src.includes('.heic') || target.src.includes('.heif')) {
+              target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+            } else {
+              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
+            }
           }}
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
         />

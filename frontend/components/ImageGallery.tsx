@@ -12,9 +12,12 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const imageList = images && images.length > 0 ? images : [
+  const sanitize = (url: string) => (url ? url.replace(/\.(heic|heif)$/i, '.jpg') : url);
+
+  const rawList = images && images.length > 0 ? images : [
     'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80',
   ];
+  const imageList = rawList.map(sanitize);
 
   const currentImage = imageList[selectedIndex];
 
@@ -51,7 +54,12 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
           src={currentImage}
           alt={`${productName} - Ảnh ${selectedIndex + 1}`}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+            const target = e.target as HTMLImageElement;
+            if (target.src.includes('.heic') || target.src.includes('.heif')) {
+              target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+            } else {
+              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+            }
           }}
           className="w-full h-full object-contain sm:object-cover"
         />
@@ -122,7 +130,12 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                   src={img}
                   alt={`Thumbnail ${idx + 1}`}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=200&q=80';
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                      target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                    } else {
+                      target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=200&q=80';
+                    }
                   }}
                   className="w-full h-full object-cover"
                 />
@@ -167,7 +180,12 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
               src={currentImage}
               alt={productName}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+                const target = e.target as HTMLImageElement;
+                if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                  target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                } else {
+                  target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+                }
               }}
               className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
             />
