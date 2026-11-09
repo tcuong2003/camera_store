@@ -10,10 +10,11 @@ import FilterBar, {
 } from '../components/FilterBar';
 import ProductGrid from '../components/ProductGrid';
 import CustomDropdown from '../components/CustomDropdown';
+import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
 import { fetchProducts } from '../lib/api';
 import { Product, FALLBACK_PRODUCTS } from '../lib/mockData';
-import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown, ChevronDown } from 'lucide-react';
 
 function CatalogContent() {
   const router = useRouter();
@@ -126,6 +127,25 @@ function CatalogContent() {
     return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
   }, [products]);
 
+  // Mobile Bottom Sheet Filter state
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [bottomSheetSection, setBottomSheetSection] = useState<'all' | 'price' | 'brand' | 'sort' | 'category'>('all');
+
+  const openFilterSheet = (section: 'all' | 'price' | 'brand' | 'sort' | 'category' = 'all') => {
+    setBottomSheetSection(section);
+    setIsBottomSheetOpen(true);
+  };
+
+  const activeFilterCount =
+    (filters.priceCategory !== 'all' ? 1 : 0) +
+    (filters.brand !== 'all' ? 1 : 0) +
+    (filters.category !== 'all' || filters.deviceType !== 'all' ? 1 : 0) +
+    (filters.sort !== 'newest' ? 1 : 0);
+
+  const selectedPriceLabel = PRICE_OPTIONS.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
+  const selectedBrandLabel = BRAND_OPTIONS.find((o) => o.value === filters.brand)?.label || 'Thương hiệu';
+  const selectedSortLabel = SORT_OPTIONS.find((o) => o.value === filters.sort)?.label || 'Sắp xếp';
+
   return (
     <div ref={catalogTopRef} className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
       {/* 1. Filter Section (Danh mục sản phẩm) */}
@@ -174,8 +194,79 @@ function CatalogContent() {
             </p>
           </div>
 
-          {/* Right: Custom Dropdowns (Khoảng giá, Thương hiệu, Sắp xếp) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 md:flex md:items-center gap-2.5 sm:gap-3 w-full md:w-auto min-w-0">
+          {/* Mobile Filter Action Bar (< md): Pills opening Bottom Sheet Modal */}
+          <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none touch-pan-x w-full">
+            {/* Primary trigger button */}
+            <button
+              type="button"
+              onClick={() => openFilterSheet('all')}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                activeFilterCount > 0
+                  ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
+                  : 'bg-slate-900 text-white hover:bg-slate-800'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Bộ lọc</span>
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-white text-amber-600 text-[10px] font-black flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* Price Pill */}
+            <button
+              type="button"
+              onClick={() => openFilterSheet('price')}
+              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
+                filters.priceCategory !== 'all'
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5 text-amber-500" />
+              <span className="max-w-[120px] truncate">
+                {filters.priceCategory !== 'all' ? selectedPriceLabel : 'Khoảng giá'}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {/* Brand Pill */}
+            <button
+              type="button"
+              onClick={() => openFilterSheet('brand')}
+              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
+                filters.brand !== 'all'
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5 text-amber-500" />
+              <span className="max-w-[100px] truncate">
+                {filters.brand !== 'all' ? selectedBrandLabel : 'Thương hiệu'}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {/* Sort Pill */}
+            <button
+              type="button"
+              onClick={() => openFilterSheet('sort')}
+              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
+                filters.sort !== 'newest'
+                  ? 'bg-slate-900 text-white border-slate-900 font-bold'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
+              }`}
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+              <span className="max-w-[110px] truncate">{selectedSortLabel}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+          </div>
+
+          {/* Desktop Filter Dropdowns (>= md) */}
+          <div className="hidden md:flex items-center gap-2.5 sm:gap-3 w-auto min-w-0">
             {/* Bộ lọc 1: Khoảng giá (Từ đâu đến đâu) */}
             <CustomDropdown
               options={PRICE_OPTIONS}
@@ -183,8 +274,6 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
               icon={<DollarSign className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả khoảng giá"
-              fullWidth={true}
-              className="w-full sm:w-auto"
             />
 
             {/* Bộ lọc 2: Thương hiệu */}
@@ -194,8 +283,6 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, brand: val })}
               icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả thương hiệu"
-              fullWidth={true}
-              className="w-full sm:w-auto"
             />
 
             {/* Sắp xếp */}
@@ -206,11 +293,20 @@ function CatalogContent() {
               icon={<ArrowUpDown className="w-4 h-4 text-slate-500" />}
               placeholder="Sắp xếp"
               align="right"
-              fullWidth={true}
-              className="w-full sm:w-auto"
             />
           </div>
         </div>
+
+        {/* Mobile Bottom Sheet Modal */}
+        <FilterBottomSheet
+          isOpen={isBottomSheetOpen}
+          onClose={() => setIsBottomSheetOpen(false)}
+          filters={filters}
+          onApply={handleFilterChange}
+          totalCount={totalCount}
+          availableCategories={availableCategories}
+          initialSection={bottomSheetSection}
+        />
 
         {/* Product Grid / Album View (4x4 = 16 items per page) */}
         <ProductGrid
