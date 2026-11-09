@@ -14,7 +14,7 @@ import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
 import { fetchProducts } from '../lib/api';
 import { Product, FALLBACK_PRODUCTS } from '../lib/mockData';
-import { Camera, DollarSign, SlidersHorizontal, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { Camera, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown } from 'lucide-react';
 
 function CatalogContent() {
   const router = useRouter();
@@ -178,96 +178,63 @@ function CatalogContent() {
 
       {/* 2. Product Grid Section with 2 Sub-filters (Khoảng giá & Thương hiệu) */}
       <section className="space-y-4 w-full">
-        {/* Header Bar: Title + 2 Custom Dropdowns (Khoảng giá & Thương hiệu) + Sắp xếp */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Header Bar:
+            - Left: Title & Count
+            - Mobile (< md): Single "Bộ lọc (+count)" button triggering Bottom Sheet
+            - Desktop (>= md): 3 CustomDropdowns (Khoảng giá, Thương hiệu, Sắp xếp)
+        */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
           {/* Left Title */}
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-amber-500" />
-              <span>Danh mục máy ảnh đang có sẵn</span>
-              <span className="text-xs font-mono font-bold bg-amber-50 text-amber-700 border border-amber-300 px-2.5 py-0.5 rounded-full">
+          <div className="flex items-center justify-between md:justify-start gap-2 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" />
+                <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 whitespace-nowrap">
+                  Danh mục máy ảnh đang có sẵn
+                </h2>
+              </div>
+              <span className="text-[11px] sm:text-xs font-mono font-bold bg-amber-50 text-amber-700 border border-amber-300 px-2 sm:px-2.5 py-0.5 rounded-full shrink-0">
                 {totalCount} máy
               </span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Cập nhật liên tục mỗi ngày
-            </p>
+            </div>
+
+            {/* Mobile-only Filter Button (< md) */}
+            <div className="flex md:hidden items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => openFilterSheet('all')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
+                  activeFilterCount > 0
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25 ring-2 ring-amber-400/40'
+                    : 'bg-slate-900 hover:bg-slate-800 text-white'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                <span>Bộ lọc</span>
+                {activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1 rounded-full bg-white text-amber-700 font-black text-[10px] shadow-xs">
+                    +{activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Mobile Filter Action Bar (< md): Pills opening Bottom Sheet Modal */}
-          <div className="flex md:hidden items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none touch-pan-x w-full">
-            {/* Primary trigger button */}
-            <button
-              type="button"
-              onClick={() => openFilterSheet('all')}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                activeFilterCount > 0
-                  ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
-                  : 'bg-slate-900 text-white hover:bg-slate-800'
-              }`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Bộ lọc</span>
-              {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-white text-amber-600 text-[10px] font-black flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            {/* Price Pill */}
-            <button
-              type="button"
-              onClick={() => openFilterSheet('price')}
-              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
-                filters.priceCategory !== 'all'
-                  ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
-              }`}
-            >
-              <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-              <span className="max-w-[120px] truncate">
-                {filters.priceCategory !== 'all' ? selectedPriceLabel : 'Khoảng giá'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {/* Brand Pill */}
-            <button
-              type="button"
-              onClick={() => openFilterSheet('brand')}
-              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
-                filters.brand !== 'all'
-                  ? 'bg-amber-50 text-amber-700 border-amber-300 font-bold'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
-              }`}
-            >
-              <Camera className="w-3.5 h-3.5 text-amber-500" />
-              <span className="max-w-[100px] truncate">
-                {filters.brand !== 'all' ? selectedBrandLabel : 'Thương hiệu'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {/* Sort Pill */}
-            <button
-              type="button"
-              onClick={() => openFilterSheet('sort')}
-              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs shrink-0 transition-all border cursor-pointer ${
-                filters.sort !== 'newest'
-                  ? 'bg-slate-900 text-white border-slate-900 font-bold'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-medium'
-              }`}
-            >
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
-              <span className="max-w-[110px] truncate">{selectedSortLabel}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-          </div>
-
-          {/* Desktop Filter Dropdowns (>= md) */}
+          {/* Desktop-only Custom Dropdowns (>= md): Khoảng giá, Thương hiệu, Sắp xếp */}
           <div className="hidden md:flex items-center gap-2.5 sm:gap-3 w-auto min-w-0">
-            {/* Bộ lọc 1: Khoảng giá (Từ đâu đến đâu) */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-xs font-semibold text-slate-500 hover:text-amber-600 transition-colors px-2 py-1.5 cursor-pointer inline-flex items-center gap-1"
+                title="Xóa tất cả bộ lọc"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Đặt lại</span>
+              </button>
+            )}
+
+            {/* Bộ lọc 1: Khoảng giá */}
             <CustomDropdown
               options={PRICE_OPTIONS}
               value={filters.priceCategory}
@@ -282,7 +249,7 @@ function CatalogContent() {
               value={filters.brand}
               onChange={(val) => handleFilterChange({ ...filters, brand: val })}
               icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
-              placeholder="Tất cả thương hiệu"
+              placeholder="Tất cả hãng"
             />
 
             {/* Sắp xếp */}
@@ -296,6 +263,85 @@ function CatalogContent() {
             />
           </div>
         </div>
+
+        {/* Active Filter Chips (if any filter is selected) */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap text-xs px-1">
+            <span className="text-slate-500 font-medium">Đang lọc:</span>
+            {filters.priceCategory !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
+                <span>{selectedPriceLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, priceCategory: 'all' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ lọc giá"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {filters.brand !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
+                <span>{selectedBrandLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, brand: 'all' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ lọc thương hiệu"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {filters.category !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
+                <span>{filters.category}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, category: 'all' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ lọc danh mục"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {filters.deviceType !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
+                <span>{filters.deviceType}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, deviceType: 'all' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ lọc dòng máy"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {filters.sort !== 'newest' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-xs">
+                <span>{selectedSortLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, sort: 'newest' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ sắp xếp"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-xs text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer ml-1"
+            >
+              Xóa tất cả
+            </button>
+          </div>
+        )}
 
         {/* Mobile Bottom Sheet Modal */}
         <FilterBottomSheet

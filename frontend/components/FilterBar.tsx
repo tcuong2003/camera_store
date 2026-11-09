@@ -45,7 +45,7 @@ export const PRICE_OPTIONS = [
 ];
 
 export const BRAND_OPTIONS = [
-  { label: 'Tất cả thương hiệu', value: 'all' },
+  { label: 'Tất cả hãng', value: 'all' },
   { label: 'Sony', value: 'Sony' },
   { label: 'Canon', value: 'Canon' },
   { label: 'Fujifilm', value: 'Fujifilm' },
@@ -165,15 +165,15 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
         )}
       </div>
 
-      {/* Category Pills List - Flex wrap for clean mobile display without horizontal scroll */}
-      <div className="flex flex-wrap items-center gap-2 py-1 w-full">
+      {/* Category Pills List: 1 single row with horizontal scroll on mobile, flex-wrap on desktop */}
+      <div className="flex flex-nowrap md:flex-wrap items-center gap-2 py-1 w-full overflow-x-auto scrollbar-none touch-pan-x overscroll-contain">
         {allCategoryPills.map((opt) => {
           const active = isCatActive(opt);
           return (
             <button
               key={`${opt.type}-${opt.value}`}
               onClick={() => handleCategorySelect(opt)}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 active
                   ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40 scale-[1.02]'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80'
