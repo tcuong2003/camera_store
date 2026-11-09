@@ -172,7 +172,7 @@ const getProducts = async (req, res) => {
   }
 };
 
-// @desc    Get single product by slug
+// @desc    Get single product by slug or ID
 // @route   GET /api/products/slug/:slug
 // @access  Public
 const getProductBySlug = async (req, res) => {
@@ -181,14 +181,14 @@ const getProductBySlug = async (req, res) => {
 
     if (!isDbConnected()) {
       const products = memoryStore.getMemoryProducts();
-      const product = products.find((p) => p.slug === slug);
+      const product = products.find((p) => p.slug === slug || p._id === slug);
       if (!product) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm này' });
       }
 
       product.views = (product.views || 0) + 1;
       const related = products
-        .filter((p) => p.slug !== slug && (p.brand === product.brand || p.priceCategory === product.priceCategory))
+        .filter((p) => (p.slug !== product.slug && p._id !== product._id) && (p.brand === product.brand || p.priceCategory === product.priceCategory))
         .slice(0, 4);
 
       return res.status(200).json({
@@ -198,7 +198,12 @@ const getProductBySlug = async (req, res) => {
       });
     }
 
-    const product = await Product.findOne({ slug });
+    let query = { slug };
+    if (mongoose.Types.ObjectId.isValid(slug)) {
+      query = { $or: [{ slug }, { _id: slug }] };
+    }
+
+    const product = await Product.findOne(query);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -231,22 +236,47 @@ const getProductBySlug = async (req, res) => {
   }
 };
 
-// @desc    Get single product by ID (Admin)
+// @desc    Get single product by ID or Slug (Public)
 // @route   GET /api/products/:id
-// @access  Private/Admin
+// @access  Public
 const getProductById = async (req, res) => {
   try {
+    const { id } = req.params;
+
     if (!isDbConnected()) {
-      const product = memoryStore.getMemoryProducts().find((p) => p._id === req.params.id);
+      const products = memoryStore.getMemoryProducts();
+      const product = products.find((p) => p._id === id || p.slug === id);
       if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
-      return res.status(200).json({ success: true, product });
+
+      const related = products
+        .filter((p) => (p.slug !== product.slug && p._id !== product._id) && (p.brand === product.brand || p.priceCategory === product.priceCategory))
+        .slice(0, 4);
+
+      return res.status(200).json({ success: true, product, related });
     }
 
-    const product = await Product.findById(req.params.id);
+    let query = { slug: id };
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query = { $or: [{ _id: id }, { slug: id }] };
+    }
+
+    const product = await Product.findOne(query);
     if (!product) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
     }
-    return res.status(200).json({ success: true, product });
+
+    product.views = (product.views || 0) + 1;
+    await product.save({ validateBeforeSave: false });
+
+    const related = await Product.find({
+      _id: { $ne: product._id },
+      $or: [{ brand: product.brand }, { priceCategory: product.priceCategory }],
+      isAvailable: true,
+    })
+      .limit(4)
+      .select('name slug price originalPrice condition images brand');
+
+    return res.status(200).json({ success: true, product, related });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

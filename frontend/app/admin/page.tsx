@@ -972,7 +972,7 @@ export default function AdminPage() {
                             />
                             <div className="min-w-0 max-w-[280px] sm:max-w-sm">
                               <Link
-                                href={`/san-pham/${p.slug}`}
+                                href={`/san-pham/${p._id || p.slug}`}
                                 target="_blank"
                                 prefetch={false}
                                 className="font-bold text-slate-900 hover:text-amber-600 line-clamp-2 flex items-center gap-1.5 transition-colors"

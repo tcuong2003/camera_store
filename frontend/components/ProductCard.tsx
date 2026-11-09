@@ -30,9 +30,11 @@ export default function ProductCard({ product }: ProductCardProps) {
   const imageCount = product.images?.length || 1;
   const plainDesc = stripHtml(product.description);
 
+  const productPath = product._id || product.slug;
+
   return (
     <Link
-      href={`/san-pham/${product.slug}`}
+      href={`/san-pham/${productPath}`}
       prefetch={false}
       className="group bg-white border border-slate-200 hover:border-amber-500/80 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/90 flex flex-col justify-between cursor-pointer"
     >

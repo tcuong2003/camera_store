@@ -1,6 +1,34 @@
 import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from './mockData';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+export const getApiBaseUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && /^https?:\/\//i.test(envUrl)) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  // Browser: relative /api or custom URL
+  if (typeof window !== 'undefined') {
+    return envUrl || '/api';
+  }
+
+  // Node.js server (SSR / Server Component): Must be an absolute URL
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}${envUrl || '/api'}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}${envUrl || '/api'}`;
+  }
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}${envUrl || '/api'}`;
+  }
+  if (process.env.FRONTEND_URL) {
+    return `${process.env.FRONTEND_URL.replace(/\/$/, '')}${envUrl || '/api'}`;
+  }
+
+  return 'https://mayanhtop1-backend.onrender.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface FilterParams {
   search?: string;
@@ -152,32 +180,44 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
   }
 };
 
-// Fetch single product by slug
-export const fetchProductBySlug = async (slug: string): Promise<SingleProductResponse | null> => {
-  const cacheKey = `product:${slug}`;
+// Fetch single product by id or slug
+export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SingleProductResponse | null> => {
+  const cacheKey = `product:${idOrSlug}`;
   const cached = apiCache.get(cacheKey) as CacheEntry<SingleProductResponse> | undefined;
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/products/slug/${slug}`, {
-      signal: AbortSignal.timeout(30000),
-    });
+  const baseUrl = getApiBaseUrl();
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(idOrSlug);
 
-    if (res.ok) {
-      const data = await res.json();
-      apiCache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
+  // Try both endpoints: by id or by slug
+  const endpoints = isObjectId
+    ? [`${baseUrl}/products/${idOrSlug}`, `${baseUrl}/products/slug/${idOrSlug}`]
+    : [`${baseUrl}/products/slug/${idOrSlug}`, `${baseUrl}/products/${idOrSlug}`];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.product) {
+          apiCache.set(cacheKey, { data, timestamp: Date.now() });
+          return data;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch product from ${url}:`, error);
     }
-  } catch (error) {
-    console.warn('Backend API unavailable for slug, checking fallback data:', error);
   }
 
-  const match = FALLBACK_PRODUCTS.find((p) => p.slug === slug);
+  const match = FALLBACK_PRODUCTS.find((p) => p.slug === idOrSlug || p._id === idOrSlug);
   if (match) {
     const related = FALLBACK_PRODUCTS.filter(
-      (p) => p.slug !== slug && (p.brand === match.brand || p.priceCategory === match.priceCategory)
+      (p) => (p.slug !== idOrSlug && p._id !== idOrSlug) && (p.brand === match.brand || p.priceCategory === match.priceCategory)
     ).slice(0, 4);
 
     return {
@@ -189,6 +229,9 @@ export const fetchProductBySlug = async (slug: string): Promise<SingleProductRes
 
   return null;
 };
+
+export const fetchProductBySlug = fetchProductByIdOrSlug;
+export const fetchProductById = fetchProductByIdOrSlug;
 
 // Fetch categories
 export const fetchCategories = async (type?: string, forceRefresh = false): Promise<Category[]> => {
