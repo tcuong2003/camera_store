@@ -363,16 +363,16 @@ export default function AdminPage() {
       const res = await adminUploadImages(files, token || '');
       setUploadProgress(80);
 
-      if (res.success && res.urls) {
+      if (res.success && res.urls && res.urls.length > 0) {
         setImages((prev) => [...prev, ...res.urls]);
+        showToast(`Đã tải lên ${res.urls.length} ảnh lên hệ thống thành công!`, 'success');
       } else {
-        const localUrls = files.map((f) => URL.createObjectURL(f));
-        setImages((prev) => [...prev, ...localUrls]);
+        alert(res.message || 'Lỗi tải ảnh lên máy chủ. Vui lòng kiểm tra lại cấu hình Cloudinary / API.');
       }
       setUploadProgress(100);
-    } catch (err) {
-      const localUrls = files.map((f) => URL.createObjectURL(f));
-      setImages((prev) => [...prev, ...localUrls]);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
+      alert(`Không thể tải ảnh lên máy chủ: ${errorMsg}`);
     } finally {
       setTimeout(() => {
         setUploadingImages(false);
@@ -403,6 +403,11 @@ export default function AdminPage() {
 
     if (images.length === 0) {
       alert('Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm');
+      return;
+    }
+
+    if (images.some((img) => img.startsWith('blob:'))) {
+      alert('Phát hiện ảnh tạm (blob:). Ảnh này chưa được tải lên máy chủ Cloudinary nên sẽ không hiển thị được trên điện thoại hoặc máy khác. Vui lòng xóa và tải lại ảnh!');
       return;
     }
 

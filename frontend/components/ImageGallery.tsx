@@ -50,6 +50,9 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
         <img
           src={currentImage}
           alt={`${productName} - Ảnh ${selectedIndex + 1}`}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+          }}
           className="w-full h-full object-contain sm:object-cover"
         />
 
@@ -118,6 +121,9 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 <img
                   src={img}
                   alt={`Thumbnail ${idx + 1}`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=200&q=80';
+                  }}
                   className="w-full h-full object-cover"
                 />
                 <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
@@ -160,6 +166,9 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
             <img
               src={currentImage}
               alt={productName}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
+              }}
               className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
             />
 
