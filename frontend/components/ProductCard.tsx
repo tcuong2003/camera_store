@@ -83,13 +83,13 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          {/* Price display (CellphoneS style) */}
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-red-600 font-extrabold text-base sm:text-lg tracking-tight">
+          {/* Price display (CellphoneS style: wraps cleanly on small mobile cards without overflowing) */}
+          <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+            <span className="text-red-600 font-extrabold text-sm sm:text-base md:text-lg tracking-tight shrink-0">
               {formatVND(product.price)}
             </span>
             {product.originalPrice && product.originalPrice > product.price ? (
-              <span className="text-slate-400 text-xs line-through">
+              <span className="text-slate-400 text-[11px] sm:text-xs line-through shrink-0">
                 {formatVND(product.originalPrice)}
               </span>
             ) : null}

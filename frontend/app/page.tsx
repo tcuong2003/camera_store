@@ -181,38 +181,38 @@ function CatalogContent() {
         {/* Header Bar:
             - Left: Title & Count
             - Mobile (< md): Single "Bộ lọc (+count)" button triggering Bottom Sheet
-            - Desktop (>= md): 3 CustomDropdowns (Khoảng giá, Thương hiệu, Sắp xếp)
+            - Tablet & Desktop (>= md): 3 CustomDropdowns (Khoảng giá, Thương hiệu, Sắp xếp)
         */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-          {/* Left Title */}
-          <div className="flex items-center justify-between md:justify-start gap-2 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" />
-                <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 whitespace-nowrap">
-                  Danh mục máy ảnh đang có sẵn
-                </h2>
-              </div>
-              <span className="text-[11px] sm:text-xs font-mono font-bold bg-amber-50 text-amber-700 border border-amber-300 px-2 sm:px-2.5 py-0.5 rounded-full shrink-0">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+          {/* Top/Left: Title & Total Count (and Mobile-only Filter Button on < md) */}
+          <div className="flex items-center justify-between gap-2 w-full lg:w-auto min-w-0">
+            {/* Title & Count */}
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 shrink-0" />
+              <h2 className="text-xs sm:text-base md:text-lg font-bold text-slate-900 truncate min-w-0">
+                <span className="hidden sm:inline">Danh mục máy ảnh đang có sẵn</span>
+                <span className="sm:hidden">Danh mục máy ảnh</span>
+              </h2>
+              <span className="text-[10px] sm:text-xs font-mono font-bold bg-amber-50 text-amber-700 border border-amber-300 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
                 {totalCount} máy
               </span>
             </div>
 
             {/* Mobile-only Filter Button (< md) */}
-            <div className="flex md:hidden items-center gap-2 shrink-0">
+            <div className="flex md:hidden items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => openFilterSheet('all')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
+                className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 shrink-0 ${
                   activeFilterCount > 0
                     ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25 ring-2 ring-amber-400/40'
                     : 'bg-slate-900 hover:bg-slate-800 text-white'
                 }`}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-                <span>Bộ lọc</span>
+                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="whitespace-nowrap">Bộ lọc</span>
                 {activeFilterCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1 rounded-full bg-white text-amber-700 font-black text-[10px] shadow-xs">
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1 rounded-full bg-white text-amber-700 font-black text-[10px] shadow-xs shrink-0">
                     +{activeFilterCount}
                   </span>
                 )}
@@ -220,13 +220,13 @@ function CatalogContent() {
             </div>
           </div>
 
-          {/* Desktop-only Custom Dropdowns (>= md): Khoảng giá, Thương hiệu, Sắp xếp */}
-          <div className="hidden md:flex items-center gap-2.5 sm:gap-3 w-auto min-w-0">
+          {/* Tablet & Desktop Custom Dropdowns (>= md): Khoảng giá, Thương hiệu, Sắp xếp */}
+          <div className="hidden md:flex flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto min-w-0">
             {activeFilterCount > 0 && (
               <button
                 type="button"
                 onClick={handleReset}
-                className="text-xs font-semibold text-slate-500 hover:text-amber-600 transition-colors px-2 py-1.5 cursor-pointer inline-flex items-center gap-1"
+                className="text-xs font-semibold text-slate-500 hover:text-amber-600 transition-colors px-2 py-1.5 cursor-pointer inline-flex items-center gap-1 shrink-0"
                 title="Xóa tất cả bộ lọc"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -241,6 +241,7 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
               icon={<DollarSign className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả khoảng giá"
+              className="flex-1 lg:flex-initial min-w-[130px]"
             />
 
             {/* Bộ lọc 2: Thương hiệu */}
@@ -250,6 +251,7 @@ function CatalogContent() {
               onChange={(val) => handleFilterChange({ ...filters, brand: val })}
               icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
               placeholder="Tất cả hãng"
+              className="flex-1 lg:flex-initial min-w-[110px]"
             />
 
             {/* Sắp xếp */}
@@ -260,6 +262,7 @@ function CatalogContent() {
               icon={<ArrowUpDown className="w-4 h-4 text-slate-500" />}
               placeholder="Sắp xếp"
               align="right"
+              className="flex-1 lg:flex-initial min-w-[120px]"
             />
           </div>
         </div>
