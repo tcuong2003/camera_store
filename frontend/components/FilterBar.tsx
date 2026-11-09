@@ -54,6 +54,15 @@ export const BRAND_OPTIONS = [
   { label: 'Olympus', value: 'Olympus' },
   { label: 'Ricoh', value: 'Ricoh' },
   { label: 'Casio', value: 'Casio' },
+  { label: 'Leica', value: 'Leica' },
+  { label: 'Sigma', value: 'Sigma' },
+  { label: 'Tamron', value: 'Tamron' },
+  { label: 'Beike', value: 'Beike' },
+  { label: 'Ulanzi', value: 'Ulanzi' },
+  { label: 'Godox', value: 'Godox' },
+  { label: 'Caden', value: 'Caden' },
+  { label: 'VSGO', value: 'VSGO' },
+  { label: 'Khác', value: 'Khác' },
 ];
 
 export const SORT_OPTIONS = [
@@ -63,13 +72,14 @@ export const SORT_OPTIONS = [
 ];
 
 export default function FilterBar({ filters, onChange, totalCount, availableCategories }: FilterBarProps) {
-  const [extraCats, setExtraCats] = useState<{ label: string; value: string }[]>([]);
+  const [extraCats, setExtraCats] = useState<{ label: string; value: string; type?: 'category' | 'deviceType' }[]>([]);
 
   useEffect(() => {
-    fetchCategories('category')
+    fetchCategories()
       .then((cats) => {
         if (cats && cats.length > 0) {
           const custom = cats
+            .filter((c) => c.type !== 'brand')
             .filter(
               (c) =>
                 !CATEGORY_OPTIONS.some(
@@ -78,7 +88,11 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
                     base.label.toLowerCase() === (c.name || '').toLowerCase()
                 )
             )
-            .map((c) => ({ label: c.name, value: c.slug || c.name }));
+            .map((c) => ({
+              label: c.name,
+              value: c.slug || c.name,
+              type: (c.type === 'device_type' ? 'deviceType' : 'category') as 'category' | 'deviceType',
+            }));
           setExtraCats(custom);
         }
       })
@@ -92,7 +106,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
     extraCats.forEach((c) => {
       if (!existingValues.has(c.value.toLowerCase())) {
         existingValues.add(c.value.toLowerCase());
-        list.push({ label: c.label, value: c.value, type: 'category' });
+        list.push({ label: c.label, value: c.value, type: c.type || 'category' });
       }
     });
 

@@ -6,6 +6,7 @@ const {
   getProductById,
   createProduct,
   updateProduct,
+  reorderProducts,
   deleteProduct,
   getAdminStats,
 } = require('../controllers/productController');
@@ -19,6 +20,7 @@ router.get('/:id', getProductById);
 // Protected routes (Admin)
 router.get('/admin/stats', protect, getAdminStats);
 router.post('/', protect, createProduct);
+router.put('/reorder', protect, reorderProducts);
 router.put('/:id', protect, updateProduct);
 router.delete('/:id', protect, deleteProduct);
 

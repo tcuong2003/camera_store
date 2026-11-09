@@ -16,6 +16,7 @@ export interface Product {
   isAvailable: boolean;
   featured?: boolean;
   views?: number;
+  order?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -2569,6 +2570,15 @@ export const FALLBACK_CATEGORIES: Category[] = [
   { name: 'Olympus', slug: 'olympus', type: 'brand', order: 6 },
   { name: 'Ricoh', slug: 'ricoh', type: 'brand', order: 7 },
   { name: 'Casio', slug: 'casio', type: 'brand', order: 8 },
+  { name: 'Leica', slug: 'leica', type: 'brand', order: 9 },
+  { name: 'Sigma', slug: 'sigma', type: 'brand', order: 10 },
+  { name: 'Tamron', slug: 'tamron', type: 'brand', order: 11 },
+  { name: 'Beike', slug: 'beike', type: 'brand', order: 12 },
+  { name: 'Ulanzi', slug: 'ulanzi', type: 'brand', order: 13 },
+  { name: 'Godox', slug: 'godox', type: 'brand', order: 14 },
+  { name: 'Caden', slug: 'caden', type: 'brand', order: 15 },
+  { name: 'VSGO', slug: 'vsgo', type: 'brand', order: 16 },
+  { name: 'Khác', slug: 'khac', type: 'brand', order: 17 },
   { name: 'Tất cả danh mục', slug: 'all', type: 'category', order: 1 },
   { name: 'Máy ảnh cũ', slug: 'may-anh-cu', type: 'category', order: 2 },
   { name: 'Máy ảnh chính hãng', slug: 'may-anh-chinh-hang', type: 'category', order: 3 },

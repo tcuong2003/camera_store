@@ -83,6 +83,10 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    order: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -90,6 +94,7 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index({ name: 'text', brand: 'text', description: 'text' });
+productSchema.index({ order: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ priceCategory: 1 });

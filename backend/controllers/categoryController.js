@@ -31,6 +31,18 @@ const getCategories = async (req, res) => {
           cats.push(newCat);
           memoryStore.addMemoryCategory(newCat);
         }
+        if (p.brand && !existingSlugs.has(p.brand.toLowerCase())) {
+          existingSlugs.add(p.brand.toLowerCase());
+          const newBrand = {
+            name: p.brand,
+            slug: slugify(p.brand, { lower: true, strict: true, locale: 'vi' }),
+            type: 'brand',
+            order: cats.length + 1,
+            isActive: true,
+          };
+          cats.push(newBrand);
+          memoryStore.addMemoryCategory(newBrand);
+        }
       }
       if (type) cats = cats.filter((c) => c.type === type);
       return res.status(200).json({ success: true, categories: cats });
@@ -41,10 +53,12 @@ const getCategories = async (req, res) => {
 
     const categories = await Category.find(query).sort({ type: 1, order: 1 }).lean();
     
-    // Also merge any categories from products
+    // Also merge any categories and brands from products
     try {
       const productCategories = await Product.distinct('category');
+      const productBrands = await Product.distinct('brand');
       const existingSlugs = new Set(categories.map((c) => (c.slug || c.name || '').toLowerCase()));
+
       for (const catName of productCategories) {
         if (catName && !existingSlugs.has(catName.toLowerCase())) {
           existingSlugs.add(catName.toLowerCase());
@@ -52,6 +66,19 @@ const getCategories = async (req, res) => {
             name: catName,
             slug: catName,
             type: 'category',
+            order: 99,
+            isActive: true,
+          });
+        }
+      }
+
+      for (const brandName of productBrands) {
+        if (brandName && !existingSlugs.has(brandName.toLowerCase())) {
+          existingSlugs.add(brandName.toLowerCase());
+          categories.push({
+            name: brandName,
+            slug: slugify(brandName, { lower: true, strict: true, locale: 'vi' }),
+            type: 'brand',
             order: 99,
             isActive: true,
           });
@@ -136,24 +163,42 @@ const updateCategory = async (req, res) => {
     const { name, type, order, isActive } = req.body;
 
     if (!isDbConnected()) {
-      return res.status(200).json({ success: true, message: 'Cập nhật thành công' });
+      const updated = memoryStore.updateMemoryCategory(req.params.id, {
+        ...(name ? { name, slug: slugify(name, { lower: true, strict: true, locale: 'vi' }) } : {}),
+        ...(type ? { type } : {}),
+        ...(order !== undefined ? { order } : {}),
+        ...(isActive !== undefined ? { isActive } : {}),
+      });
+      return res.status(200).json({ success: true, message: 'Cập nhật danh mục thành công', category: updated });
     }
 
-    const category = await Category.findById(req.params.id);
+    let category = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      category = await Category.findById(req.params.id);
+    }
     if (!category) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy danh mục',
+      category = await Category.findOne({
+        $or: [{ slug: req.params.id }, { name: req.params.id }],
       });
     }
 
-    if (name) {
-      category.name = name;
-      category.slug = slugify(name, { lower: true, strict: true, locale: 'vi' });
+    if (!category) {
+      const slug = slugify(name || req.params.id, { lower: true, strict: true, locale: 'vi' });
+      category = new Category({
+        name: name || req.params.id,
+        slug,
+        type: type || 'category',
+        order: order || 0,
+      });
+    } else {
+      if (name) {
+        category.name = name;
+        category.slug = slugify(name, { lower: true, strict: true, locale: 'vi' });
+      }
+      if (type) category.type = type;
+      if (order !== undefined) category.order = order;
+      if (isActive !== undefined) category.isActive = isActive;
     }
-    if (type) category.type = type;
-    if (order !== undefined) category.order = order;
-    if (isActive !== undefined) category.isActive = isActive;
 
     await category.save();
 
@@ -180,7 +225,15 @@ const deleteCategory = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Xóa danh mục thành công' });
     }
 
-    const category = await Category.findById(req.params.id);
+    let category = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      category = await Category.findById(req.params.id);
+    }
+    if (!category) {
+      category = await Category.findOne({
+        $or: [{ slug: req.params.id }, { name: req.params.id }],
+      });
+    }
     if (!category) {
       return res.status(404).json({
         success: false,
@@ -188,7 +241,7 @@ const deleteCategory = async (req, res) => {
       });
     }
 
-    await Category.findByIdAndDelete(req.params.id);
+    await Category.findByIdAndDelete(category._id);
 
     return res.status(200).json({
       success: true,

@@ -78,6 +78,13 @@ const getProducts = async (req, res) => {
         filtered.sort((a, b) => b.price - a.price);
       } else if (sort === 'views_desc') {
         filtered.sort((a, b) => (b.views || 0) - (a.views || 0));
+      } else {
+        filtered.sort((a, b) => {
+          const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
+          const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
       }
 
       const total = filtered.length;
@@ -135,7 +142,7 @@ const getProducts = async (req, res) => {
       query.deviceType = new RegExp(`^${deviceType}$`, 'i');
     }
 
-    let sortOption = { createdAt: -1 };
+    let sortOption = { order: 1, createdAt: -1 };
     if (sort === 'price_asc') sortOption = { price: 1 };
     else if (sort === 'price_desc') sortOption = { price: -1 };
     else if (sort === 'views_desc') sortOption = { views: -1 };
@@ -302,6 +309,7 @@ const createProduct = async (req, res) => {
       warranty,
       isAvailable,
       featured,
+      order,
     } = req.body;
 
     if (!name || price === undefined || price === null || price === '' || !brand) {
@@ -361,6 +369,7 @@ const createProduct = async (req, res) => {
         isAvailable: isAvailable !== undefined ? isAvailable : true,
         featured: featured || false,
         views: 0,
+        order: order !== undefined && order !== '' ? Number(order) : 1,
         createdAt: new Date().toISOString(),
       };
       memoryStore.addMemoryProduct(newProd);
@@ -375,6 +384,11 @@ const createProduct = async (req, res) => {
     while (await Product.findOne({ slug: uniqueSlug })) {
       uniqueSlug = `${baseSlug}-${count}`;
       count++;
+    }
+
+    const targetOrder = order !== undefined && order !== '' ? Number(order) : 1;
+    if (targetOrder > 0) {
+      await Product.updateMany({ order: { $gte: targetOrder } }, { $inc: { order: 1 } });
     }
 
     const product = new Product({
@@ -393,6 +407,7 @@ const createProduct = async (req, res) => {
       warranty: warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1',
       isAvailable: isAvailable !== undefined ? isAvailable : true,
       featured: featured || false,
+      order: targetOrder,
     });
 
     const savedProduct = await product.save();
@@ -463,6 +478,7 @@ const updateProduct = async (req, res) => {
       warranty,
       isAvailable,
       featured,
+      order,
     } = req.body;
 
     if (name && name !== product.name) {
@@ -493,6 +509,23 @@ const updateProduct = async (req, res) => {
     if (warranty !== undefined) product.warranty = warranty;
     if (isAvailable !== undefined) product.isAvailable = isAvailable;
     if (featured !== undefined) product.featured = featured;
+
+    if (order !== undefined && order !== '') {
+      const newPos = Math.max(1, Number(order));
+      const oldPos = product.order || 9999;
+      if (newPos < oldPos) {
+        await Product.updateMany(
+          { order: { $gte: newPos, $lt: oldPos } },
+          { $inc: { order: 1 } }
+        );
+      } else if (newPos > oldPos) {
+        await Product.updateMany(
+          { order: { $gt: oldPos, $lte: newPos } },
+          { $inc: { order: -1 } }
+        );
+      }
+      product.order = newPos;
+    }
 
     const updatedProduct = await product.save();
 
@@ -575,12 +608,78 @@ const getAdminStats = async (req, res) => {
   }
 };
 
+// @desc    Reorder products (change display position)
+// @route   PUT /api/products/reorder
+// @access  Private/Admin
+const reorderProducts = async (req, res) => {
+  try {
+    const { productId, newOrder, orderedIds } = req.body;
+
+    if (!isDbConnected()) {
+      if (orderedIds && Array.isArray(orderedIds)) {
+        memoryStore.reorderMemoryProductsList(orderedIds);
+        return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm thành công' });
+      }
+      if (productId && newOrder !== undefined) {
+        const updated = memoryStore.reorderMemoryProduct(productId, Number(newOrder));
+        if (!updated) {
+          return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
+        }
+        return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm', product: updated });
+      }
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin vị trí sắp xếp' });
+    }
+
+    if (orderedIds && Array.isArray(orderedIds)) {
+      const bulkOps = orderedIds.map((id, idx) => ({
+        updateOne: {
+          filter: { _id: id },
+          update: { $set: { order: idx + 1 } },
+        },
+      }));
+      await Product.bulkWrite(bulkOps);
+      return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm thành công' });
+    }
+
+    if (productId && newOrder !== undefined) {
+      const targetPos = Math.max(1, parseInt(newOrder, 10) || 1);
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
+      }
+
+      const oldOrder = product.order || 9999;
+      if (targetPos < oldOrder) {
+        await Product.updateMany(
+          { order: { $gte: targetPos, $lt: oldOrder } },
+          { $inc: { order: 1 } }
+        );
+      } else if (targetPos > oldOrder) {
+        await Product.updateMany(
+          { order: { $gt: oldOrder, $lte: targetPos } },
+          { $inc: { order: -1 } }
+        );
+      }
+
+      product.order = targetPos;
+      await product.save();
+
+      return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm', product });
+    }
+
+    return res.status(400).json({ success: false, message: 'Thiếu thông tin vị trí sắp xếp' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi khi cập nhật vị trí: ' + error.message });
+  }
+};
+
 module.exports = {
   getProducts,
   getProductBySlug,
   getProductById,
   createProduct,
   updateProduct,
+  reorderProducts,
   deleteProduct,
   getAdminStats,
 };

@@ -7,13 +7,14 @@ import FilterBar, {
   PRICE_OPTIONS,
   BRAND_OPTIONS,
   SORT_OPTIONS,
+  CATEGORY_OPTIONS,
 } from '../components/FilterBar';
 import ProductGrid from '../components/ProductGrid';
 import CustomDropdown from '../components/CustomDropdown';
 import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
-import { fetchProducts } from '../lib/api';
-import { Product, FALLBACK_PRODUCTS } from '../lib/mockData';
+import { fetchProducts, fetchCategories } from '../lib/api';
+import { Product, Category, FALLBACK_PRODUCTS } from '../lib/mockData';
 import { Camera, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown } from 'lucide-react';
 
 function CatalogContent() {
@@ -67,7 +68,13 @@ function CatalogContent() {
       } catch (err) {
         console.error('Failed to load products:', err);
         if (isMounted) {
-          setProducts(FALLBACK_PRODUCTS.slice(0, 25));
+          const sortedFallback = [...FALLBACK_PRODUCTS].sort((a, b) => {
+            const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
+            const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
+            if (orderA !== orderB) return orderA - orderB;
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          });
+          setProducts(sortedFallback.slice(0, 25));
           setTotalCount(FALLBACK_PRODUCTS.length);
           setTotalPages(Math.ceil(FALLBACK_PRODUCTS.length / 25));
         }
@@ -122,6 +129,60 @@ function CatalogContent() {
       sort: 'newest',
     });
   };
+
+  const [categoriesData, setCategoriesData] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetchCategories()
+      .then((cats) => {
+        if (cats && cats.length > 0) setCategoriesData(cats);
+      })
+      .catch(() => {});
+  }, []);
+
+  const dynamicBrandOptions = React.useMemo(() => {
+    const list = [...BRAND_OPTIONS];
+    const seen = new Set(list.map((b) => b.value.toLowerCase()));
+
+    categoriesData
+      .filter((c) => c.type === 'brand')
+      .forEach((c) => {
+        if (!seen.has(c.name.toLowerCase())) {
+          seen.add(c.name.toLowerCase());
+          list.push({ label: c.name, value: c.name });
+        }
+      });
+
+    products.forEach((p) => {
+      if (p.brand && !seen.has(p.brand.toLowerCase())) {
+        seen.add(p.brand.toLowerCase());
+        list.push({ label: p.brand, value: p.brand });
+      }
+    });
+
+    return list;
+  }, [categoriesData, products]);
+
+  const dynamicCategoryOptions = React.useMemo(() => {
+    const list = [...CATEGORY_OPTIONS];
+    const seen = new Set(list.map((c) => c.value.toLowerCase()));
+
+    categoriesData
+      .filter((c) => c.type === 'category' || c.type === 'device_type' || !c.type)
+      .forEach((c) => {
+        const val = c.slug || c.name;
+        if (!seen.has(val.toLowerCase()) && val.toLowerCase() !== 'all') {
+          seen.add(val.toLowerCase());
+          list.push({
+            label: c.name,
+            value: val,
+            type: c.type === 'device_type' ? 'deviceType' : 'category',
+          });
+        }
+      });
+
+    return list;
+  }, [categoriesData]);
 
   const availableCategories = React.useMemo(() => {
     return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
@@ -246,7 +307,7 @@ function CatalogContent() {
 
             {/* Bộ lọc 2: Thương hiệu */}
             <CustomDropdown
-              options={BRAND_OPTIONS}
+              options={dynamicBrandOptions}
               value={filters.brand}
               onChange={(val) => handleFilterChange({ ...filters, brand: val })}
               icon={<SlidersHorizontal className="w-4 h-4 text-amber-600" />}
@@ -355,6 +416,8 @@ function CatalogContent() {
           totalCount={totalCount}
           availableCategories={availableCategories}
           initialSection={bottomSheetSection}
+          brandOptions={dynamicBrandOptions}
+          categoryOptions={dynamicCategoryOptions}
         />
 
         {/* Product Grid / Album View (4x4 = 16 items per page) */}

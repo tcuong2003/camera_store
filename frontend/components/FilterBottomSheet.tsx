@@ -28,6 +28,8 @@ interface FilterBottomSheetProps {
   totalCount: number;
   availableCategories?: string[];
   initialSection?: 'all' | 'price' | 'brand' | 'sort' | 'category';
+  brandOptions?: { label: string; value: string }[];
+  categoryOptions?: CategoryOption[];
 }
 
 export default function FilterBottomSheet({
@@ -38,9 +40,14 @@ export default function FilterBottomSheet({
   totalCount,
   availableCategories = [],
   initialSection = 'all',
+  brandOptions,
+  categoryOptions,
 }: FilterBottomSheetProps) {
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
   const sheetContentRef = useRef<HTMLDivElement>(null);
+
+  const activeBrands = brandOptions && brandOptions.length > 0 ? brandOptions : BRAND_OPTIONS;
+  const activeCategories = categoryOptions && categoryOptions.length > 0 ? categoryOptions : CATEGORY_OPTIONS;
 
   // Sync tempFilters when opened
   useEffect(() => {
@@ -220,9 +227,9 @@ export default function FilterBottomSheet({
                 </button>
               )}
             </div>
-            {/* Lưới 3 cột: 9 thẻ đều tăm tắp 100% */}
-            <div className="grid grid-cols-3 gap-2">
-              {BRAND_OPTIONS.map((opt) => {
+            {/* Lưới các thẻ thương hiệu */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {activeBrands.map((opt) => {
                 const active = tempFilters.brand.toLowerCase() === opt.value.toLowerCase();
                 return (
                   <button
@@ -235,7 +242,7 @@ export default function FilterBottomSheet({
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >
-                    <span className="leading-tight">{opt.label}</span>
+                    <span className="leading-tight truncate">{opt.label}</span>
                   </button>
                 );
               })}
@@ -259,9 +266,9 @@ export default function FilterBottomSheet({
                 </button>
               )}
             </div>
-            {/* Lưới 2 cột đều đặn: tất cả 8 thẻ có cùng chiều rộng 50% và chiều cao h-11 */}
+            {/* Lưới 2 cột đều đặn: tất cả các thẻ có cùng chiều rộng 50% và chiều cao h-11 */}
             <div className="grid grid-cols-2 gap-2">
-              {CATEGORY_OPTIONS.map((opt) => {
+              {activeCategories.map((opt) => {
                 const active = isCatActive(opt);
                 return (
                   <button

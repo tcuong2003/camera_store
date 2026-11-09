@@ -352,3 +352,47 @@ export const adminCreateCategory = async (
   });
   return await res.json();
 };
+
+export const adminUpdateCategory = async (
+  id: string,
+  categoryData: { name?: string; type?: string; order?: number; isActive?: boolean },
+  token: string
+) => {
+  clearApiCache();
+  const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(categoryData),
+  });
+  return await res.json();
+};
+
+export const adminDeleteCategory = async (id: string, token: string) => {
+  clearApiCache();
+  const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return await res.json();
+};
+
+export const adminReorderProduct = async (
+  data: { productId?: string; newOrder?: number; orderedIds?: string[] },
+  token: string
+) => {
+  clearApiCache();
+  const res = await fetch(`${API_BASE_URL}/products/reorder`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return await res.json();
+};
