@@ -17,10 +17,10 @@ export default function Footer() {
   }
 
   return (
-    <footer className="bg-white border-t border-slate-200 text-slate-600 pt-10 pb-24 sm:pb-10 mt-14 shadow-inner w-full max-w-full overflow-hidden">
+    <footer className="bg-white border-t border-slate-200 text-slate-600 pt-6 sm:pt-7 pb-20 sm:pb-7 mt-4 sm:mt-5 shadow-inner w-full max-w-full overflow-hidden">
       <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Footer Main Columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pb-6 sm:pb-7">
           {/* Brand Info */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">

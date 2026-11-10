@@ -38,7 +38,7 @@ export default function Pagination({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-2 border-t border-slate-200">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-0.5 border-t border-slate-200">
       {/* Page indicator info */}
       <span className="text-xs text-slate-500 font-medium order-2 sm:order-1">
         Hiển thị trang <strong className="text-slate-900 font-mono">{currentPage}</strong> / <span className="font-mono">{totalPages}</span>
