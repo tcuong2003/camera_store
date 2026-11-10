@@ -17,7 +17,7 @@ import CustomDropdown from '../components/CustomDropdown';
 import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
 import { fetchProducts, fetchCategories } from '../lib/api';
-import { Product, Category, FALLBACK_PRODUCTS } from '../lib/mockData';
+import { Product, Category } from '../lib/mockData';
 import { Camera, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown, Layers } from 'lucide-react';
 
 function CatalogContent() {

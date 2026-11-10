@@ -110,7 +110,7 @@ const getProducts = async (req, res) => {
       const limitNum = parseInt(limit, 10) || 25;
       const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
-      res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       return res.status(200).json({
         success: true,
         count: paginated.length,
@@ -213,7 +213,7 @@ const getProducts = async (req, res) => {
         .lean(),
     ]);
 
-    res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res.status(200).json({
       success: true,
       count: products.length,

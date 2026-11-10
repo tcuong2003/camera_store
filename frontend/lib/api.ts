@@ -1,4 +1,4 @@
-import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from './mockData';
+import { Product, Category } from './mockData';
 
 export const getApiBaseUrl = (): string => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -63,16 +63,9 @@ export const formatVND = (price: number): string => {
   return `${formatted}đ`;
 };
 
-// In-memory cache for ultra-fast instant UI rendering
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-const apiCache = new Map<string, CacheEntry<unknown>>();
-const CACHE_TTL = 45000; // 45 seconds cache
-
+// Cache disabled - all requests fetch fresh real-time data with cache: 'no-store'
 export const clearApiCache = () => {
-  apiCache.clear();
+  // cache is disabled
 };
 
 // Generate Zalo chat link with optional product URL
@@ -87,8 +80,8 @@ export const getZaloChatUrl = (productName?: string, productUrl?: string): strin
   return `https://zalo.me/${hotline}?text=${encodeURIComponent(text)}`;
 };
 
-// Fetch products with filters
-export const fetchProducts = async (params: FilterParams = {}, forceRefresh = false): Promise<ProductsResponse> => {
+// Fetch products with filters (always fresh real-time data)
+export const fetchProducts = async (params: FilterParams = {}, _forceRefresh = true): Promise<ProductsResponse> => {
   const query = new URLSearchParams();
   if (params.search) query.append('search', params.search);
   if (params.brand && params.brand !== 'all') query.append('brand', params.brand);
@@ -98,14 +91,6 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
   if (params.sort) query.append('sort', params.sort);
   if (params.page) query.append('page', params.page.toString());
   if (params.limit) query.append('limit', params.limit.toString());
-
-  const cacheKey = `products:${query.toString()}`;
-  if (!forceRefresh) {
-    const cached = apiCache.get(cacheKey) as CacheEntry<ProductsResponse> | undefined;
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
-  }
 
   try {
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
@@ -118,7 +103,6 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
     }
 
     const data: ProductsResponse = await res.json();
-    apiCache.set(cacheKey, { data, timestamp: Date.now() });
     return data;
   } catch (error) {
     console.warn('Backend API request error:', error);
@@ -133,14 +117,8 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
   }
 };
 
-// Fetch single product by id or slug
+// Fetch single product by id or slug (always fresh real-time data)
 export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SingleProductResponse | null> => {
-  const cacheKey = `product:${idOrSlug}`;
-  const cached = apiCache.get(cacheKey) as CacheEntry<SingleProductResponse> | undefined;
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
-  }
-
   const baseUrl = getApiBaseUrl();
   const isObjectId = /^[0-9a-fA-F]{24}$/.test(idOrSlug);
 
@@ -152,13 +130,13 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
   for (const url of endpoints) {
     try {
       const res = await fetch(url, {
+        cache: 'no-store',
         signal: AbortSignal.timeout(30000),
       });
 
       if (res.ok) {
         const data = await res.json();
         if (data && data.product) {
-          apiCache.set(cacheKey, { data, timestamp: Date.now() });
           return data;
         }
       }
@@ -173,16 +151,8 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
 export const fetchProductBySlug = fetchProductByIdOrSlug;
 export const fetchProductById = fetchProductByIdOrSlug;
 
-// Fetch categories (always fresh by default to prevent stale client sync)
-export const fetchCategories = async (type?: string, forceRefresh = true): Promise<Category[]> => {
-  const cacheKey = `categories:${type || 'all'}`;
-  if (!forceRefresh) {
-    const cached = apiCache.get(cacheKey) as CacheEntry<Category[]> | undefined;
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
-  }
-
+// Fetch categories (always fresh real-time data)
+export const fetchCategories = async (type?: string, _forceRefresh = true): Promise<Category[]> => {
   try {
     const query = type ? `?type=${type}` : '';
     const res = await fetch(`${API_BASE_URL}/categories${query}`, {
@@ -193,7 +163,6 @@ export const fetchCategories = async (type?: string, forceRefresh = true): Promi
     if (res.ok) {
       const data = await res.json();
       const cats = data.categories || [];
-      apiCache.set(cacheKey, { data: cats, timestamp: Date.now() });
       return cats;
     }
   } catch (error) {

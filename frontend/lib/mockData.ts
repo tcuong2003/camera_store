@@ -31,7 +31,3 @@ export interface Category {
   order?: number;
   isActive?: boolean;
 }
-
-// Cleared mock data - Real database data from MongoDB Atlas only
-export const FALLBACK_PRODUCTS: Product[] = [];
-export const FALLBACK_CATEGORIES: Category[] = [];
