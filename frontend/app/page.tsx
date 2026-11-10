@@ -14,6 +14,7 @@ import {
 } from '../components/FilterBar';
 import ProductGrid from '../components/ProductGrid';
 import CustomDropdown from '../components/CustomDropdown';
+import PriceFilterDropdown from '../components/PriceFilterDropdown';
 import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
 import { fetchProducts, fetchCategories } from '../lib/api';
@@ -38,6 +39,8 @@ function CatalogContent() {
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<FilterState>({
     priceCategory: searchParams.get('priceCategory') || 'all',
+    minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : null,
+    maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : null,
     brand: searchParams.get('brand') || 'all',
     category: searchParams.get('category') || 'all',
     sort: searchParams.get('sort') || 'newest',
@@ -54,6 +57,8 @@ function CatalogContent() {
         const res = await fetchProducts({
           search: searchKeyword,
           priceCategory: filters.priceCategory,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
           brand: filters.brand,
           category: filters.category,
           sort: filters.sort,
@@ -90,6 +95,8 @@ function CatalogContent() {
   const updateUrl = (newFilters: FilterState, pageNum: number) => {
     const params = new URLSearchParams();
     if (searchKeyword) params.set('search', searchKeyword);
+    if (newFilters.minPrice) params.set('minPrice', newFilters.minPrice.toString());
+    if (newFilters.maxPrice) params.set('maxPrice', newFilters.maxPrice.toString());
     if (newFilters.priceCategory !== 'all') params.set('priceCategory', newFilters.priceCategory);
     if (newFilters.brand !== 'all') params.set('brand', newFilters.brand);
     if (newFilters.category !== 'all') params.set('category', newFilters.category);
@@ -117,6 +124,8 @@ function CatalogContent() {
   const handleReset = () => {
     handleFilterChange({
       priceCategory: 'all',
+      minPrice: null,
+      maxPrice: null,
       brand: 'all',
       category: 'all',
       sort: 'newest',
@@ -239,17 +248,45 @@ function CatalogContent() {
     setIsBottomSheetOpen(true);
   };
 
+  const hasPriceFilter =
+    (filters.minPrice !== null && filters.minPrice !== undefined) ||
+    (filters.maxPrice !== null && filters.maxPrice !== undefined) ||
+    (filters.priceCategory && filters.priceCategory !== 'all');
+
   const activeFilterCount =
-    (filters.priceCategory !== 'all' ? 1 : 0) +
+    (hasPriceFilter ? 1 : 0) +
     (filters.brand !== 'all' ? 1 : 0) +
     (filters.category !== 'all' ? 1 : 0) +
     (filters.sort !== 'newest' ? 1 : 0);
 
+  const formatShortPrice = (num: number): string => {
+    if (num >= 1000000) {
+      const m = num / 1000000;
+      return Number.isInteger(m) ? `${m} tr` : `${m.toFixed(1)} tr`;
+    }
+    return `${Math.round(num / 1000)}k`;
+  };
+
   const selectedCategoryLabel =
     dynamicCategoryOptions.find((o) => o.value.toLowerCase() === filters.category.toLowerCase())?.label ||
     (filters.category === 'all' ? 'Tất cả danh mục' : filters.category);
-  const selectedPriceLabel =
-    dynamicPriceOptions.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
+
+  const selectedPriceLabel = React.useMemo(() => {
+    if (filters.minPrice && filters.maxPrice) {
+      return `${formatShortPrice(filters.minPrice)} - ${formatShortPrice(filters.maxPrice)}`;
+    }
+    if (filters.minPrice && !filters.maxPrice) {
+      return `Từ ${formatShortPrice(filters.minPrice)}`;
+    }
+    if (!filters.minPrice && filters.maxPrice) {
+      return `Dưới ${formatShortPrice(filters.maxPrice)}`;
+    }
+    if (filters.priceCategory && filters.priceCategory !== 'all') {
+      const found = dynamicPriceOptions.find((o) => o.value === filters.priceCategory);
+      if (found) return found.label;
+    }
+    return 'Khoảng giá';
+  }, [filters.minPrice, filters.maxPrice, filters.priceCategory, dynamicPriceOptions]);
   const selectedBrandLabel =
     dynamicBrandOptions.find((o) => o.value.toLowerCase() === filters.brand.toLowerCase())?.label ||
     filters.brand ||
@@ -345,13 +382,19 @@ function CatalogContent() {
             />
 
             {/* Bộ lọc 2: Khoảng giá */}
-            <CustomDropdown
-              options={dynamicPriceOptions}
-              value={filters.priceCategory}
-              onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
-              icon={<DollarSign className="w-4 h-4 text-amber-600" />}
-              placeholder="Tất cả khoảng giá"
-              className="flex-1 lg:flex-initial min-w-[130px]"
+            <PriceFilterDropdown
+              minPrice={filters.minPrice}
+              maxPrice={filters.maxPrice}
+              priceCategory={filters.priceCategory}
+              onChange={(minPrice, maxPrice, priceCategory) => {
+                handleFilterChange({
+                  ...filters,
+                  minPrice,
+                  maxPrice,
+                  priceCategory: priceCategory || 'all',
+                });
+              }}
+              className="flex-1 lg:flex-initial min-w-[140px]"
             />
 
             {/* Bộ lọc 3: Thương hiệu */}
@@ -394,12 +437,12 @@ function CatalogContent() {
                 </button>
               </span>
             )}
-            {filters.priceCategory !== 'all' && (
+            {hasPriceFilter && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
                 <span>{selectedPriceLabel}</span>
                 <button
                   type="button"
-                  onClick={() => handleFilterChange({ ...filters, priceCategory: 'all' })}
+                  onClick={() => handleFilterChange({ ...filters, priceCategory: 'all', minPrice: null, maxPrice: null })}
                   className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
                   title="Bỏ lọc giá"
                 >

@@ -46,7 +46,20 @@ export default function FilterBottomSheet({
   priceOptions,
 }: FilterBottomSheetProps) {
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
+  const [sheetMin, setSheetMin] = useState<string>(
+    filters.minPrice !== undefined && filters.minPrice !== null ? filters.minPrice.toString() : ''
+  );
+  const [sheetMax, setSheetMax] = useState<string>(
+    filters.maxPrice !== undefined && filters.maxPrice !== null ? filters.maxPrice.toString() : ''
+  );
   const sheetContentRef = useRef<HTMLDivElement>(null);
+
+  const formatNumberWithDots = (val: string | number): string => {
+    if (val === '' || val === null || val === undefined) return '';
+    const num = typeof val === 'number' ? val : Number(val.toString().replace(/\D/g, ''));
+    if (isNaN(num)) return '';
+    return new Intl.NumberFormat('vi-VN').format(num);
+  };
 
   const activeBrands = brandOptions && brandOptions.length > 0 ? brandOptions : [{ label: 'Tất cả hãng', value: 'all' }];
   const activeCategories: CategoryOption[] = categoryOptions && categoryOptions.length > 0 ? categoryOptions : [{ label: 'Tất cả danh mục', value: 'all', type: 'all' as const }];
@@ -56,6 +69,8 @@ export default function FilterBottomSheet({
   useEffect(() => {
     if (isOpen) {
       setTempFilters(filters);
+      setSheetMin(filters.minPrice !== undefined && filters.minPrice !== null ? filters.minPrice.toString() : '');
+      setSheetMax(filters.maxPrice !== undefined && filters.maxPrice !== null ? filters.maxPrice.toString() : '');
       // Lock body scroll
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
@@ -77,19 +92,45 @@ export default function FilterBottomSheet({
     }
   }, [isOpen, initialSection]);
 
+  const hasPriceFilter =
+    (tempFilters.minPrice !== null && tempFilters.minPrice !== undefined) ||
+    (tempFilters.maxPrice !== null && tempFilters.maxPrice !== undefined) ||
+    (tempFilters.priceCategory && tempFilters.priceCategory !== 'all');
+
   const activeFilterCount =
-    (tempFilters.priceCategory !== 'all' ? 1 : 0) +
+    (hasPriceFilter ? 1 : 0) +
     (tempFilters.brand !== 'all' ? 1 : 0) +
     (tempFilters.category !== 'all' ? 1 : 0) +
     (tempFilters.sort !== 'newest' ? 1 : 0);
 
   const handleReset = () => {
+    setSheetMin('');
+    setSheetMax('');
     setTempFilters({
       priceCategory: 'all',
+      minPrice: null,
+      maxPrice: null,
       brand: 'all',
       category: 'all',
       sort: 'newest',
     });
+  };
+
+  const handlePriceRangeUpdate = (minStr: string, maxStr: string) => {
+    setSheetMin(minStr);
+    setSheetMax(maxStr);
+    const minVal = minStr ? Number(minStr.replace(/\D/g, '')) : null;
+    const maxVal = maxStr ? Number(maxStr.replace(/\D/g, '')) : null;
+    if (minVal === null && maxVal === null) {
+      setTempFilters((prev) => ({ ...prev, minPrice: null, maxPrice: null, priceCategory: 'all' }));
+    } else {
+      setTempFilters((prev) => ({
+        ...prev,
+        minPrice: minVal,
+        maxPrice: maxVal,
+        priceCategory: `custom_${minVal || 0}_${maxVal || ''}`,
+      }));
+    }
   };
 
   const handleApply = () => {
@@ -155,56 +196,58 @@ export default function FilterBottomSheet({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6 overscroll-contain">
           {/* Section 1: Khoảng giá */}
-          <div id="filter-section-price" className="space-y-2.5">
+          <div id="filter-section-price" className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <DollarSign className="w-4 h-4 text-amber-500" />
-                <span>Khoảng giá</span>
+                <span>Khoảng giá (VNĐ)</span>
               </label>
-              {tempFilters.priceCategory !== 'all' && (
+              {hasPriceFilter && (
                 <button
                   type="button"
-                  onClick={() => setTempFilters((p) => ({ ...p, priceCategory: 'all' }))}
+                  onClick={() => {
+                    setSheetMin('');
+                    setSheetMax('');
+                    setTempFilters((p) => ({ ...p, priceCategory: 'all', minPrice: null, maxPrice: null }));
+                  }}
                   className="text-[11px] text-amber-600 font-semibold hover:underline cursor-pointer"
                 >
-                  Mặc định
+                  Xóa lọc giá
                 </button>
               )}
             </div>
 
-            {/* Tất cả khoảng giá: thẻ toàn chiều rộng đều đặn */}
-            <button
-              type="button"
-              onClick={() => setTempFilters((prev) => ({ ...prev, priceCategory: 'all' }))}
-              className={`w-full h-11 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between cursor-pointer ${
-                tempFilters.priceCategory === 'all'
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm ring-2 ring-amber-400/40'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-              }`}
-            >
-              <span>Tất cả khoảng giá</span>
-              {tempFilters.priceCategory === 'all' && <Check className="w-4 h-4 text-white" />}
-            </button>
+            {/* Nhập khoảng giá từ - đến */}
+            <div className="p-3 bg-slate-50/80 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Từ đ"
+                    value={formatNumberWithDots(sheetMin)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      handlePriceRangeUpdate(raw, sheetMax);
+                    }}
+                    className="w-full bg-white border border-slate-200 focus:border-amber-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 text-center"
+                  />
+                </div>
 
-            {/* Các khoảng giá: lưới 2 cột đều nhau 100% */}
-            <div className="grid grid-cols-2 gap-2">
-              {activePrices.filter((opt) => opt.value !== 'all').map((opt) => {
-                const active = tempFilters.priceCategory === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setTempFilters((prev) => ({ ...prev, priceCategory: opt.value }))}
-                    className={`h-12 px-2.5 rounded-xl text-xs font-semibold text-center transition-all border flex items-center justify-center leading-tight cursor-pointer ${
-                      active
-                        ? 'bg-amber-500 text-white border-amber-600 shadow-sm ring-2 ring-amber-400/40 font-bold'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
+                <span className="text-slate-400 font-bold text-sm shrink-0">-</span>
+
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Đến đ"
+                    value={formatNumberWithDots(sheetMax)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      handlePriceRangeUpdate(sheetMin, raw);
+                    }}
+                    className="w-full bg-white border border-slate-200 focus:border-amber-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 text-center"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

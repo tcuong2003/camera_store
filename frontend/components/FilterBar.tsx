@@ -6,6 +6,8 @@ import { fetchCategories } from '../lib/api';
 
 export interface FilterState {
   priceCategory: string;
+  minPrice?: number | null;
+  maxPrice?: number | null;
   brand: string;
   category: string;
   sort: string;
@@ -97,12 +99,16 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
 
   const isFiltered =
     filters.priceCategory !== 'all' ||
+    (filters.minPrice !== undefined && filters.minPrice !== null) ||
+    (filters.maxPrice !== undefined && filters.maxPrice !== null) ||
     filters.brand !== 'all' ||
     filters.category !== 'all';
 
   const resetFilters = () => {
     onChange({
       priceCategory: 'all',
+      minPrice: null,
+      maxPrice: null,
       brand: 'all',
       category: 'all',
       sort: 'newest',

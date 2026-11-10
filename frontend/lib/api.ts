@@ -34,6 +34,8 @@ export interface FilterParams {
   search?: string;
   brand?: string;
   priceCategory?: string;
+  minPrice?: number | null;
+  maxPrice?: number | null;
   category?: string;
   deviceType?: string;
   sort?: string;
@@ -86,6 +88,8 @@ export const fetchProducts = async (params: FilterParams = {}, _forceRefresh = t
   if (params.search) query.append('search', params.search);
   if (params.brand && params.brand !== 'all') query.append('brand', params.brand);
   if (params.priceCategory && params.priceCategory !== 'all') query.append('priceCategory', params.priceCategory);
+  if (params.minPrice !== undefined && params.minPrice !== null && !isNaN(params.minPrice)) query.append('minPrice', params.minPrice.toString());
+  if (params.maxPrice !== undefined && params.maxPrice !== null && !isNaN(params.maxPrice)) query.append('maxPrice', params.maxPrice.toString());
   if (params.category && params.category !== 'all') query.append('category', params.category);
   if (params.deviceType && params.deviceType !== 'all') query.append('deviceType', params.deviceType);
   if (params.sort) query.append('sort', params.sort);

@@ -165,8 +165,8 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Tab navigation: separate top-level tabs (products, brand, category, price)
-  const [activeTab, setActiveTab] = useState<'products' | 'brand' | 'category' | 'price'>('products');
+  // Tab navigation: separate top-level tabs (products, brand, category)
+  const [activeTab, setActiveTab] = useState<'products' | 'brand' | 'category'>('products');
 
   // Product management state
   const [products, setProducts] = useState<Product[]>([]);
@@ -234,14 +234,8 @@ export default function AdminPage() {
   // Category management state
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatType, setNewCatType] = useState<'category' | 'brand' | 'price'>('category');
+  const [newCatType, setNewCatType] = useState<'category' | 'brand'>('category');
   const [categoryFilterType, setCategoryFilterType] = useState<string>('all');
-
-  // Price range specific state
-  const [newPriceMin, setNewPriceMin] = useState<string>('');
-  const [newPriceMax, setNewPriceMax] = useState<string>('');
-  const [editPriceMin, setEditPriceMin] = useState<string>('');
-  const [editPriceMax, setEditPriceMax] = useState<string>('');
 
   // Category Edit state
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -947,59 +941,8 @@ export default function AdminPage() {
     return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
   };
 
-  const generatePriceLabel = (minStr: string, maxStr: string) => {
-    const min = minStr ? Number(minStr.replace(/\D/g, '')) : null;
-    const max = maxStr ? Number(maxStr.replace(/\D/g, '')) : null;
-    if (min === null && max !== null) return `Dưới ${formatMillionLabel(max)}`;
-    if (min !== null && max !== null) return `${formatMillionLabel(min)} - ${formatMillionLabel(max)}`;
-    if (min !== null && max === null) return `Trên ${formatMillionLabel(min)}`;
-    return '';
-  };
-
   // Category Add for specific tab
-  const handleAddCategoryForTab = async (type: 'brand' | 'category' | 'price') => {
-    if (type === 'price') {
-      const minNum = newPriceMin ? Number(newPriceMin.replace(/\D/g, '')) : null;
-      const maxNum = newPriceMax ? Number(newPriceMax.replace(/\D/g, '')) : null;
-      if (minNum === null && maxNum === null) {
-        showToast('Vui lòng nhập giá từ hoặc giá đến của khoảng giá', 'error');
-        return;
-      }
-      if (minNum !== null && maxNum !== null && minNum > maxNum) {
-        showToast('Giá từ không thể lớn hơn giá đến', 'error');
-        return;
-      }
-
-      const finalName = newCatName.trim() || generatePriceLabel(newPriceMin, newPriceMax);
-      try {
-        const res = await adminCreateCategory(
-          { name: finalName, type: 'price', minPrice: minNum, maxPrice: maxNum },
-          token || ''
-        );
-        if (res && res.category) {
-          setCategories((prev) => [...prev, res.category]);
-        } else {
-          setCategories((prev) => [
-            ...prev,
-            {
-              name: finalName,
-              slug: finalName.toLowerCase().replace(/\s+/g, '-'),
-              type: 'price',
-              minPrice: minNum,
-              maxPrice: maxNum,
-            },
-          ]);
-        }
-        showToast(`Đã thêm khoảng giá "${finalName}" thành công!`, 'success');
-        setNewPriceMin('');
-        setNewPriceMax('');
-        setNewCatName('');
-      } catch (err) {
-        showToast('Lỗi khi thêm: ' + String(err), 'error');
-      }
-      return;
-    }
-
+  const handleAddCategoryForTab = async (type: 'brand' | 'category') => {
     if (!newCatName.trim()) {
       showToast('Vui lòng nhập tên trước khi bấm thêm', 'error');
       return;
@@ -1032,7 +975,7 @@ export default function AdminPage() {
     }
   };
 
-  const getCategoryTabConfig = (tab: 'brand' | 'category' | 'price') => {
+  const getCategoryTabConfig = (tab: 'brand' | 'category') => {
     switch (tab) {
       case 'brand':
         return {
@@ -1055,17 +998,6 @@ export default function AdminPage() {
           badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
           emptyText: 'Chưa có danh mục nào. Hãy thêm danh mục đầu tiên phía trên!',
           items: mainCategories,
-        };
-      case 'price':
-        return {
-          title: 'Thêm khoảng / tầm giá mới',
-          inputPlaceholder: 'Nhập tầm giá (Ví dụ: Dưới 3 triệu, 3 - 5 triệu, 5 - 10 triệu, Trên 10 triệu...)',
-          buttonLabel: 'Thêm tầm giá',
-          listTitle: 'Danh sách khoảng giá hiện có',
-          typeLabel: 'Tầm giá',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          emptyText: 'Chưa có khoảng giá nào. Hãy thêm khoảng giá đầu tiên phía trên!',
-          items: priceCategories,
         };
     }
   };
@@ -1112,8 +1044,6 @@ export default function AdminPage() {
   const handleOpenEditCategory = (cat: Category) => {
     setEditingCategory(cat);
     setEditCatName(cat.name);
-    setEditPriceMin(cat.minPrice !== undefined && cat.minPrice !== null ? String(cat.minPrice) : '');
-    setEditPriceMax(cat.maxPrice !== undefined && cat.maxPrice !== null ? String(cat.maxPrice) : '');
     setIsEditCatModalOpen(true);
   };
 
@@ -1122,23 +1052,7 @@ export default function AdminPage() {
     if (!editingCategory) return;
 
     const targetType = editingCategory.type || 'category';
-    let minNum: number | null = null;
-    let maxNum: number | null = null;
-
-    if (targetType === 'price') {
-      minNum = editPriceMin ? Number(editPriceMin.replace(/\D/g, '')) : null;
-      maxNum = editPriceMax ? Number(editPriceMax.replace(/\D/g, '')) : null;
-      if (minNum === null && maxNum === null) {
-        showToast('Vui lòng nhập giá từ hoặc giá đến của khoảng giá', 'error');
-        return;
-      }
-      if (minNum !== null && maxNum !== null && minNum > maxNum) {
-        showToast('Giá từ không thể lớn hơn giá đến', 'error');
-        return;
-      }
-    }
-
-    const trimmed = editCatName.trim() || (targetType === 'price' ? generatePriceLabel(editPriceMin, editPriceMax) : '');
+    const trimmed = editCatName.trim();
     if (!trimmed) {
       showToast('Vui lòng nhập tên hợp lệ', 'error');
       return;
@@ -1151,7 +1065,7 @@ export default function AdminPage() {
       if (token) {
         await adminUpdateCategory(
           catId,
-          { name: trimmed, type: targetType, minPrice: minNum, maxPrice: maxNum },
+          { name: trimmed, type: targetType },
           token
         );
       }
@@ -1164,8 +1078,6 @@ export default function AdminPage() {
                 name: trimmed,
                 slug: trimmed.toLowerCase().replace(/\s+/g, '-'),
                 type: targetType,
-                minPrice: minNum,
-                maxPrice: maxNum,
               }
             : c
         )
@@ -1195,8 +1107,7 @@ export default function AdminPage() {
         );
       }
 
-      const typeLabel =
-        targetType === 'brand' ? 'thương hiệu' : targetType === 'price' ? 'khoảng giá' : 'danh mục';
+      const typeLabel = targetType === 'brand' ? 'thương hiệu' : 'danh mục';
       showToast(`Đã cập nhật ${typeLabel} "${trimmed}" thành công!`, 'success');
       setIsEditCatModalOpen(false);
       setEditingCategory(null);
@@ -1270,7 +1181,6 @@ export default function AdminPage() {
   // Separate category collections by type for individual tabs
   const brandCategories = useMemo(() => categories.filter((c) => c.type === 'brand'), [categories]);
   const mainCategories = useMemo(() => categories.filter((c) => c.type === 'category' || !c.type), [categories]);
-  const priceCategories = useMemo(() => categories.filter((c) => c.type === 'price'), [categories]);
 
   // Statistics (Accurate count matching MongoDB Atlas)
   const totalCount = products.length;
@@ -1423,7 +1333,7 @@ export default function AdminPage() {
       </div>
 
       {/* Quick Stats Overview Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* 1. Tổng máy ảnh */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
@@ -1470,23 +1380,6 @@ export default function AdminPage() {
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
             <FolderPlus className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-        </div>
-
-        {/* 4. Tầm giá */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tầm giá</span>
-            {isLoading ? (
-              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
-            ) : (
-              <div className="text-2xl sm:text-3xl font-extrabold text-violet-600 tracking-tight mt-1">
-                {priceCategories.length} <span className="text-xs sm:text-sm font-semibold text-slate-500">khoảng giá</span>
-              </div>
-            )}
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-600 shrink-0">
-            <Tag className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
@@ -1539,22 +1432,6 @@ export default function AdminPage() {
         >
           <FolderPlus className="w-4 h-4 shrink-0" />
           <span>Danh mục</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('price');
-            setNewCatType('price');
-          }}
-          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-            activeTab === 'price'
-              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
-              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Tag className="w-4 h-4 shrink-0" />
-          <span>Tầm giá</span>
         </button>
       </div>
 
@@ -1919,101 +1796,29 @@ export default function AdminPage() {
                   <h3 className="font-bold text-slate-900 text-base">{cfg.title}</h3>
                 </div>
 
-                {activeTab === 'price' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] gap-3 items-end">
-                    {/* Giá từ */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Giá từ (VNĐ)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: 3000000 (để trống = 0đ)"
-                        value={newPriceMin ? new Intl.NumberFormat('vi-VN').format(Number(newPriceMin)) : ''}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, '');
-                          setNewPriceMin(raw);
-                          const autoName = generatePriceLabel(raw, newPriceMax);
-                          if (autoName) setNewCatName(autoName);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                      />
-                    </div>
-
-                    {/* Giá đến */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Giá đến (VNĐ)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: 5000000 (để trống = trở lên)"
-                        value={newPriceMax ? new Intl.NumberFormat('vi-VN').format(Number(newPriceMax)) : ''}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, '');
-                          setNewPriceMax(raw);
-                          const autoName = generatePriceLabel(newPriceMin, raw);
-                          if (autoName) setNewCatName(autoName);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                      />
-                    </div>
-
-                    {/* Tên khoảng giá */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Tên hiển thị khoảng giá *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Tự động hoặc tự nhập (VD: 3 - 5 triệu)"
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddCategoryForTab('price');
-                          }
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                      />
-                    </div>
-
-                    {/* Nút Thêm khoảng giá (cùng 1 row trên desktop) */}
-                    <button
-                      type="button"
-                      onClick={() => handleAddCategoryForTab('price')}
-                      className="h-[42px] flex items-center justify-center gap-2 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Thêm khoảng giá</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <input
-                      type="text"
-                      placeholder={cfg.inputPlaceholder}
-                      value={newCatName}
-                      onChange={(e) => setNewCatName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCategoryForTab(activeTab);
-                        }
-                      }}
-                      className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddCategoryForTab(activeTab)}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>{cfg.buttonLabel}</span>
-                    </button>
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-3 items-center">
+                  <input
+                    type="text"
+                    placeholder={cfg.inputPlaceholder}
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCategoryForTab(activeTab);
+                      }
+                    }}
+                    className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddCategoryForTab(activeTab)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{cfg.buttonLabel}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Items Grid */}
@@ -2049,15 +1854,7 @@ export default function AdminPage() {
                               {cfg.typeLabel}
                             </span>
                             <span className="text-[11px] font-mono text-slate-500 font-medium truncate max-w-[130px]">
-                              {c.type === 'price' && (c.minPrice !== null || c.maxPrice !== null)
-                                ? c.minPrice !== null && c.minPrice !== undefined && c.maxPrice !== null && c.maxPrice !== undefined
-                                  ? `${formatVND(c.minPrice)} - ${formatVND(c.maxPrice)}`
-                                  : c.maxPrice !== null && c.maxPrice !== undefined
-                                  ? `< ${formatVND(c.maxPrice)}`
-                                  : c.minPrice !== null && c.minPrice !== undefined
-                                  ? `> ${formatVND(c.minPrice)}`
-                                  : c.slug
-                                : c.slug}
+                              {c.slug}
                             </span>
                           </div>
                         </div>
@@ -2106,8 +1903,6 @@ export default function AdminPage() {
                 <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
                   {editingCategory.type === 'brand'
                     ? 'Chỉnh Sửa Thương Hiệu'
-                    : editingCategory.type === 'price'
-                    ? 'Chỉnh Sửa Khoảng Giá'
                     : 'Chỉnh Sửa Danh Mục'}
                 </h3>
               </div>
@@ -2122,79 +1917,24 @@ export default function AdminPage() {
 
             {/* Form */}
             <form onSubmit={handleSaveEditCategory} className="p-6 space-y-4">
-              {editingCategory.type === 'price' ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Giá từ (VNĐ)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: 3000000 (để trống = 0đ)"
-                        value={editPriceMin ? new Intl.NumberFormat('vi-VN').format(Number(editPriceMin)) : ''}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, '');
-                          setEditPriceMin(raw);
-                          const autoName = generatePriceLabel(raw, editPriceMax);
-                          if (autoName) setEditCatName(autoName);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Giá đến (VNĐ)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: 5000000 (để trống = trở lên)"
-                        value={editPriceMax ? new Intl.NumberFormat('vi-VN').format(Number(editPriceMax)) : ''}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, '');
-                          setEditPriceMax(raw);
-                          const autoName = generatePriceLabel(editPriceMin, raw);
-                          if (autoName) setEditCatName(autoName);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Tên hiển thị khoảng giá *
-                    </label>
-                    <input
-                      type="text"
-                      value={editCatName}
-                      onChange={(e) => setEditCatName(e.target.value)}
-                      placeholder="Tự động hoặc tự nhập (VD: 3 - 5 triệu)"
-                      required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                    />
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    {editingCategory.type === 'brand' ? 'Tên thương hiệu *' : 'Tên danh mục sản phẩm *'}
-                  </label>
-                  <input
-                    type="text"
-                    value={editCatName}
-                    onChange={(e) => setEditCatName(e.target.value)}
-                    placeholder={
-                      editingCategory.type === 'brand'
-                        ? 'Ví dụ: Sony, Leica, Canon, Fujifilm...'
-                        : 'Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính...'
-                    }
-                    required
-                    autoFocus
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  {editingCategory.type === 'brand' ? 'Tên thương hiệu *' : 'Tên danh mục sản phẩm *'}
+                </label>
+                <input
+                  type="text"
+                  value={editCatName}
+                  onChange={(e) => setEditCatName(e.target.value)}
+                  placeholder={
+                    editingCategory.type === 'brand'
+                      ? 'Ví dụ: Sony, Leica, Canon, Fujifilm...'
+                      : 'Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính...'
+                  }
+                  required
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                />
+              </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button

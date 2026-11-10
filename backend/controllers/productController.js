@@ -22,6 +22,8 @@ const getProducts = async (req, res) => {
       search,
       brand,
       priceCategory,
+      minPrice,
+      maxPrice,
       category,
       deviceType,
       isAvailable,
@@ -56,42 +58,63 @@ const getProducts = async (req, res) => {
       query.brand = { $in: brands.map((b) => new RegExp(`^${b}$`, 'i')) };
     }
 
-    if (priceCategory && priceCategory !== 'all') {
-      const priceCats = priceCategory.split(',').map((p) => p.trim());
-      const priceConditions = [];
+    if (minPrice || maxPrice) {
+      const priceCond = {};
+      if (minPrice !== undefined && minPrice !== '' && !isNaN(Number(minPrice))) {
+        priceCond.$gte = Number(minPrice);
+      }
+      if (maxPrice !== undefined && maxPrice !== '' && !isNaN(Number(maxPrice))) {
+        priceCond.$lte = Number(maxPrice);
+      }
+      if (Object.keys(priceCond).length > 0) {
+        query.price = priceCond;
+      }
+    } else if (priceCategory && priceCategory !== 'all') {
+      if (priceCategory.startsWith('custom_') || priceCategory.startsWith('range_')) {
+        const parts = priceCategory.replace(/^(custom|range)_/, '').split('_');
+        const min = parts[0] && !isNaN(Number(parts[0])) ? Number(parts[0]) : null;
+        const max = parts[1] && !isNaN(Number(parts[1])) ? Number(parts[1]) : null;
+        const cond = {};
+        if (min !== null) cond.$gte = min;
+        if (max !== null) cond.$lte = max;
+        if (Object.keys(cond).length > 0) query.price = cond;
+      } else {
+        const priceCats = priceCategory.split(',').map((p) => p.trim());
+        const priceConditions = [];
 
-      for (const cat of priceCats) {
-        if (cat === 'under_3m') {
-          priceConditions.push({ price: { $lt: 3000000 } });
-        } else if (cat === '3m_5m') {
-          priceConditions.push({ price: { $gte: 3000000, $lte: 5000000 } });
-        } else if (cat === '5m_10m') {
-          priceConditions.push({ price: { $gte: 5000000, $lte: 10000000 } });
-        } else if (cat === 'above_10m') {
-          priceConditions.push({ price: { $gt: 10000000 } });
-        } else {
-          let catDoc = null;
-          if (mongoose.Types.ObjectId.isValid(cat)) {
-            catDoc = await Category.findById(cat);
-          }
-          if (!catDoc) {
-            catDoc = await Category.findOne({ type: 'price', $or: [{ slug: cat }, { name: cat }] });
-          }
-          if (catDoc && (catDoc.minPrice !== null || catDoc.maxPrice !== null)) {
-            const cond = {};
-            if (catDoc.minPrice !== null && catDoc.minPrice !== undefined) cond.$gte = catDoc.minPrice;
-            if (catDoc.maxPrice !== null && catDoc.maxPrice !== undefined) cond.$lte = catDoc.maxPrice;
-            if (Object.keys(cond).length > 0) priceConditions.push({ price: cond });
+        for (const cat of priceCats) {
+          if (cat === 'under_3m') {
+            priceConditions.push({ price: { $lt: 3000000 } });
+          } else if (cat === '3m_5m') {
+            priceConditions.push({ price: { $gte: 3000000, $lte: 5000000 } });
+          } else if (cat === '5m_10m') {
+            priceConditions.push({ price: { $gte: 5000000, $lte: 10000000 } });
+          } else if (cat === 'above_10m') {
+            priceConditions.push({ price: { $gt: 10000000 } });
           } else {
-            priceConditions.push({ priceCategory: cat });
+            let catDoc = null;
+            if (mongoose.Types.ObjectId.isValid(cat)) {
+              catDoc = await Category.findById(cat);
+            }
+            if (!catDoc) {
+              catDoc = await Category.findOne({ type: 'price', $or: [{ slug: cat }, { name: cat }] });
+            }
+            if (catDoc && (catDoc.minPrice !== null || catDoc.maxPrice !== null)) {
+              const cond = {};
+              if (catDoc.minPrice !== null && catDoc.minPrice !== undefined) cond.$gte = catDoc.minPrice;
+              if (catDoc.maxPrice !== null && catDoc.maxPrice !== undefined) cond.$lte = catDoc.maxPrice;
+              if (Object.keys(cond).length > 0) priceConditions.push({ price: cond });
+            } else {
+              priceConditions.push({ priceCategory: cat });
+            }
           }
         }
-      }
 
-      if (priceConditions.length === 1) {
-        Object.assign(query, priceConditions[0]);
-      } else if (priceConditions.length > 1) {
-        query.$or = query.$or ? [...query.$or, ...priceConditions] : priceConditions;
+        if (priceConditions.length === 1) {
+          Object.assign(query, priceConditions[0]);
+        } else if (priceConditions.length > 1) {
+          query.$or = query.$or ? [...query.$or, ...priceConditions] : priceConditions;
+        }
       }
     }
 
