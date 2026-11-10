@@ -226,7 +226,6 @@ export default function AdminPage() {
   // Category Edit state
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCatName, setEditCatName] = useState('');
-  const [editCatType, setEditCatType] = useState<'category' | 'brand' | 'price'>('category');
   const [isEditCatModalOpen, setIsEditCatModalOpen] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
@@ -1029,14 +1028,13 @@ export default function AdminPage() {
   const handleOpenEditCategory = (cat: Category) => {
     setEditingCategory(cat);
     setEditCatName(cat.name);
-    setEditCatType(cat.type === 'brand' ? 'brand' : cat.type === 'price' ? 'price' : 'category');
     setIsEditCatModalOpen(true);
   };
 
   const handleSaveEditCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory || !editCatName.trim()) {
-      showToast('Vui lòng nhập tên danh mục / nhãn phân loại', 'error');
+      showToast('Vui lòng nhập tên hợp lệ', 'error');
       return;
     }
 
@@ -1045,10 +1043,11 @@ export default function AdminPage() {
 
     try {
       const catId = editingCategory._id || editingCategory.slug || editingCategory.name;
+      const targetType = editingCategory.type || 'category';
       if (token) {
         await adminUpdateCategory(
           catId,
-          { name: trimmed, type: editCatType },
+          { name: trimmed, type: targetType },
           token
         );
       }
@@ -1060,17 +1059,19 @@ export default function AdminPage() {
                 ...c,
                 name: trimmed,
                 slug: trimmed.toLowerCase().replace(/\s+/g, '-'),
-                type: editCatType,
+                type: targetType,
               }
             : c
         )
       );
 
-      showToast(`Đã cập nhật danh mục "${trimmed}" thành công!`, 'success');
+      const typeLabel =
+        targetType === 'brand' ? 'thương hiệu' : targetType === 'price' ? 'khoảng giá' : 'danh mục';
+      showToast(`Đã cập nhật ${typeLabel} "${trimmed}" thành công!`, 'success');
       setIsEditCatModalOpen(false);
       setEditingCategory(null);
     } catch (err) {
-      showToast('Lỗi cập nhật danh mục: ' + String(err), 'error');
+      showToast('Lỗi cập nhật: ' + String(err), 'error');
     } finally {
       setIsSavingCategory(false);
     }
@@ -1189,12 +1190,6 @@ export default function AdminPage() {
   const filterCategoryOptions: DropdownOption[] = [
     { label: 'Tất cả danh mục', value: 'all' },
     ...allCategoryOptions,
-  ];
-
-  const catTypeOptions: DropdownOption[] = [
-    { label: 'Danh mục chính (Category)', value: 'category' },
-    { label: 'Thương hiệu (Brand)', value: 'brand' },
-    { label: 'Tầm giá (Price)', value: 'price' },
   ];
 
   // If not logged in, render Admin Login screen
@@ -1891,7 +1886,7 @@ export default function AdminPage() {
         })()
       )}
 
-      {/* EDIT CATEGORY MODAL */}
+      {/* EDIT CATEGORY / BRAND / PRICE MODAL */}
       {mounted && isEditCatModalOpen && editingCategory && createPortal(
         <div 
           className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-200"
@@ -1906,7 +1901,11 @@ export default function AdminPage() {
               <div className="flex items-center gap-2">
                 <Edit className="w-4 h-4 text-amber-500" />
                 <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                  Chỉnh Sửa Nhãn Danh Mục
+                  {editingCategory.type === 'brand'
+                    ? 'Chỉnh Sửa Thương Hiệu'
+                    : editingCategory.type === 'price'
+                    ? 'Chỉnh Sửa Khoảng Giá'
+                    : 'Chỉnh Sửa Danh Mục'}
                 </h3>
               </div>
               <button
@@ -1922,27 +1921,26 @@ export default function AdminPage() {
             <form onSubmit={handleSaveEditCategory} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Tên danh mục / nhãn phân loại *
+                  {editingCategory.type === 'brand'
+                    ? 'Tên thương hiệu *'
+                    : editingCategory.type === 'price'
+                    ? 'Tên khoảng giá *'
+                    : 'Tên danh mục sản phẩm *'}
                 </label>
                 <input
                   type="text"
                   value={editCatName}
                   onChange={(e) => setEditCatName(e.target.value)}
-                  placeholder="Ví dụ: Sony, Leica, Máy ảnh cũ..."
+                  placeholder={
+                    editingCategory.type === 'brand'
+                      ? 'Ví dụ: Sony, Leica, Canon, Fujifilm...'
+                      : editingCategory.type === 'price'
+                      ? 'Ví dụ: Dưới 3 triệu, 3 - 5 triệu...'
+                      : 'Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính...'
+                  }
                   required
+                  autoFocus
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Loại nhãn phân loại
-                </label>
-                <CustomDropdown
-                  options={catTypeOptions}
-                  value={editCatType}
-                  onChange={(v) => setEditCatType(v as any)}
-                  fullWidth
                 />
               </div>
 
