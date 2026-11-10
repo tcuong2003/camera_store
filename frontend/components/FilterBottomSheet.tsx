@@ -48,9 +48,9 @@ export default function FilterBottomSheet({
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
   const sheetContentRef = useRef<HTMLDivElement>(null);
 
-  const activeBrands = brandOptions && brandOptions.length > 0 ? brandOptions : BRAND_OPTIONS;
-  const activeCategories = categoryOptions && categoryOptions.length > 0 ? categoryOptions : CATEGORY_OPTIONS;
-  const activePrices = priceOptions && priceOptions.length > 0 ? priceOptions : PRICE_OPTIONS;
+  const activeBrands = brandOptions && brandOptions.length > 0 ? brandOptions : [{ label: 'Tất cả hãng', value: 'all' }];
+  const activeCategories: CategoryOption[] = categoryOptions && categoryOptions.length > 0 ? categoryOptions : [{ label: 'Tất cả danh mục', value: 'all', type: 'all' as const }];
+  const activePrices = priceOptions && priceOptions.length > 0 ? priceOptions : [{ label: 'Tất cả khoảng giá', value: 'all' }];
 
   // Sync tempFilters when opened
   useEffect(() => {

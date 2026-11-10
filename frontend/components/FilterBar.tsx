@@ -26,39 +26,14 @@ interface FilterBarProps {
 
 export const CATEGORY_OPTIONS: CategoryOption[] = [
   { label: 'Tất cả danh mục', value: 'all', type: 'all' },
-  { label: 'Máy ảnh cũ', value: 'may-anh-cu', type: 'category' },
-  { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang', type: 'category' },
-  { label: 'Ống kính (Lens)', value: 'ong-kinh', type: 'category' },
-  { label: 'Phụ kiện máy ảnh', value: 'phu-kien', type: 'category' },
 ];
 
 export const PRICE_OPTIONS = [
   { label: 'Tất cả khoảng giá', value: 'all' },
-  { label: 'Dưới 3.000.000 đ', value: 'under_3m' },
-  { label: 'Từ 3.000.000 đ - 5.000.000 đ', value: '3m_5m' },
-  { label: 'Từ 5.000.000 đ - 10.000.000 đ', value: '5m_10m' },
-  { label: 'Trên 10.000.000 đ', value: 'above_10m' },
 ];
 
 export const BRAND_OPTIONS = [
   { label: 'Tất cả hãng', value: 'all' },
-  { label: 'Sony', value: 'Sony' },
-  { label: 'Canon', value: 'Canon' },
-  { label: 'Fujifilm', value: 'Fujifilm' },
-  { label: 'Nikon', value: 'Nikon' },
-  { label: 'Lumix', value: 'Lumix' },
-  { label: 'Olympus', value: 'Olympus' },
-  { label: 'Ricoh', value: 'Ricoh' },
-  { label: 'Casio', value: 'Casio' },
-  { label: 'Leica', value: 'Leica' },
-  { label: 'Sigma', value: 'Sigma' },
-  { label: 'Tamron', value: 'Tamron' },
-  { label: 'Beike', value: 'Beike' },
-  { label: 'Ulanzi', value: 'Ulanzi' },
-  { label: 'Godox', value: 'Godox' },
-  { label: 'Caden', value: 'Caden' },
-  { label: 'VSGO', value: 'VSGO' },
-  { label: 'Khác', value: 'Khác' },
 ];
 
 export const SORT_OPTIONS = [
@@ -74,43 +49,40 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
     fetchCategories()
       .then((cats) => {
         if (cats && cats.length > 0) {
-          // Strictly only include categories with type === 'category' (never price or brand)
           const custom = cats
             .filter((c) => c.type === 'category')
-            .filter(
-              (c) =>
-                !CATEGORY_OPTIONS.some(
-                  (base) =>
-                    base.value.toLowerCase() === (c.slug || '').toLowerCase() ||
-                    base.label.toLowerCase() === (c.name || '').toLowerCase()
-                )
-            )
             .map((c) => ({
               label: c.name,
               value: c.slug || c.name,
               type: 'category' as const,
             }));
           setExtraCats(custom);
+        } else {
+          setExtraCats([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setExtraCats([]);
+      });
   }, []);
 
   const allCategoryPills: CategoryOption[] = useMemo(() => {
-    const list = [...CATEGORY_OPTIONS];
-    const existingValues = new Set(list.map((o) => o.value.toLowerCase()));
+    const list: CategoryOption[] = [{ label: 'Tất cả danh mục', value: 'all', type: 'all' }];
+    const existingValues = new Set(['all']);
 
     extraCats.forEach((c) => {
-      if (!existingValues.has(c.value.toLowerCase())) {
-        existingValues.add(c.value.toLowerCase());
+      const val = (c.value || '').toLowerCase();
+      if (val && !existingValues.has(val)) {
+        existingValues.add(val);
         list.push({ label: c.label, value: c.value, type: 'category' });
       }
     });
 
     if (availableCategories) {
       availableCategories.forEach((cat) => {
-        if (cat && !existingValues.has(cat.toLowerCase())) {
-          existingValues.add(cat.toLowerCase());
+        const val = (cat || '').toLowerCase();
+        if (val && !existingValues.has(val)) {
+          existingValues.add(val);
           list.push({ label: cat, value: cat, type: 'category' });
         }
       });

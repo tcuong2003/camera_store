@@ -1262,46 +1262,25 @@ export default function AdminPage() {
   const totalCount = products.length;
   const brandCount = brandCategories.length;
 
-  const baseCategoryOptions: DropdownOption[] = useMemo(() => [
-    { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
-    { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
-    { label: 'Ống kính (Lens)', value: 'ong-kinh' },
-    { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
-  ], []);
-
   const allCategoryOptions: DropdownOption[] = useMemo(() => {
     const mainCats = categories.filter((c) => c.type === 'category' || !c.type);
-    if (mainCats.length > 0) {
-      const list: DropdownOption[] = [];
-      const seen = new Set<string>();
-      mainCats.forEach((c) => {
-        const slug = c.slug || c.name;
-        if (!seen.has(slug.toLowerCase()) && slug.toLowerCase() !== 'all') {
-          seen.add(slug.toLowerCase());
-          list.push({ label: c.name, value: slug });
-        }
-      });
-      extraCategories.forEach((c) => {
-        if (!seen.has(c.value.toLowerCase())) {
-          seen.add(c.value.toLowerCase());
-          list.push(c);
-        }
-      });
-      return list;
-    }
-
-    const list: DropdownOption[] = [...baseCategoryOptions];
-    const seen = new Set(list.map((c) => c.value.toLowerCase()));
-
+    const list: DropdownOption[] = [];
+    const seen = new Set<string>();
+    mainCats.forEach((c) => {
+      const slug = c.slug || c.name;
+      if (!seen.has(slug.toLowerCase()) && slug.toLowerCase() !== 'all') {
+        seen.add(slug.toLowerCase());
+        list.push({ label: c.name, value: slug });
+      }
+    });
     extraCategories.forEach((c) => {
       if (!seen.has(c.value.toLowerCase())) {
         seen.add(c.value.toLowerCase());
         list.push(c);
       }
     });
-
     return list;
-  }, [baseCategoryOptions, categories, extraCategories]);
+  }, [categories, extraCategories]);
 
   const filterBrandOptions: DropdownOption[] = [
     { label: 'Tất cả hãng', value: 'all' },
@@ -1757,11 +1736,17 @@ export default function AdminPage() {
                           </td>
                           <td className="py-3.5 px-4 text-left">
                             <div className="flex items-center gap-3">
-                              <img
-                                src={p.images?.[0] || 'https://via.placeholder.com/80'}
-                                alt={p.name}
-                                className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200 shadow-2xs"
-                              />
+                              {p.images?.[0] ? (
+                                <img
+                                  src={sanitizeImageUrl(p.images[0])}
+                                  alt={p.name}
+                                  className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200 shadow-2xs"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center text-slate-300">
+                                  <Camera className="w-5 h-5" />
+                                </div>
+                              )}
                               <div className="min-w-0 max-w-[280px] sm:max-w-sm">
                                 <Link
                                   href={`/san-pham/${p._id || p.slug}`}
@@ -2456,8 +2441,6 @@ export default function AdminPage() {
                             const target = e.target as HTMLImageElement;
                             if (target.src.includes('.heic') || target.src.includes('.heif')) {
                               target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-                            } else {
-                              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80';
                             }
                           }}
                           className="w-full h-full object-cover"

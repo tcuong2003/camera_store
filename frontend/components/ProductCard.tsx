@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Product } from '../lib/mockData';
 import { formatVND } from '../lib/api';
-import { Images } from 'lucide-react';
+import { Images, Camera } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -26,9 +26,10 @@ const stripHtml = (html?: string): string => {
 };
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const rawThumbnail = product.images?.[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
+  const [imageError, setImageError] = useState(false);
+  const rawThumbnail = product.images?.[0] || '';
   const thumbnail = rawThumbnail.replace(/\.(heic|heif)$/i, '.jpg');
-  const imageCount = product.images?.length || 1;
+  const imageCount = product.images?.length || 0;
   const plainDesc = stripHtml(product.description);
   const displayBrand = !product.brand || !product.brand.trim() || product.brand.toLowerCase() === 'other' || product.brand.toLowerCase() === 'khac'
     ? 'Khác'
@@ -43,21 +44,28 @@ export default function ProductCard({ product }: ProductCardProps) {
       className="group bg-white border border-slate-200 hover:border-amber-500/80 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/90 flex flex-col justify-between cursor-pointer"
     >
       {/* Thumbnail / Album Cover */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-        <img
-          src={thumbnail}
-          alt={product.name}
-          loading="lazy"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (target.src.includes('.heic') || target.src.includes('.heif')) {
-              target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-            } else {
-              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80';
-            }
-          }}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-        />
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 flex items-center justify-center">
+        {thumbnail && !imageError ? (
+          <img
+            src={thumbnail}
+            alt={product.name}
+            loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+              } else {
+                setImageError(true);
+              }
+            }}
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-slate-300 p-4 text-center">
+            <Camera className="w-10 h-10 mb-1" />
+            <span className="text-xs font-medium text-slate-400">Chưa có ảnh</span>
+          </div>
+        )}
 
         {/* Featured Badge (Top-left if featured) */}
         {product.featured && (

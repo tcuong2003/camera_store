@@ -21,24 +21,8 @@ interface ProductDetailClientProps {
   slug: string;
 }
 
-const CATEGORY_NAMES: Record<string, string> = {
-  'may-anh-cu': 'Máy ảnh cũ',
-  'may-anh-chinh-hang': 'Máy ảnh chính hãng',
-  'ong-kinh': 'Ống kính (Lens)',
-  'phu-kien': 'Phụ kiện máy ảnh',
-  'Mirrorless': 'Mirrorless',
-  'DSLR': 'DSLR',
-  'Compact': 'Compact / Y2K',
-};
-
 const getCategoryLabel = (category?: string, deviceType?: string) => {
-  if (category) {
-    return CATEGORY_NAMES[category] || category;
-  }
-  if (deviceType) {
-    return CATEGORY_NAMES[deviceType] || deviceType;
-  }
-  return 'Máy ảnh';
+  return category || deviceType || '';
 };
 
 export default function ProductDetailClient({

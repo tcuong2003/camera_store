@@ -158,8 +158,8 @@ function CatalogContent() {
 
   const dynamicPriceOptions = React.useMemo(() => {
     const backendPrices = categoriesData.filter((c) => c.type === 'price');
+    const list = [{ label: 'Tất cả khoảng giá', value: 'all' }];
     if (backendPrices.length > 0) {
-      const list = [{ label: 'Tất cả khoảng giá', value: 'all' }];
       const seen = new Set(['all']);
       backendPrices.forEach((c) => {
         const val = c.slug || c.name;
@@ -168,49 +168,63 @@ function CatalogContent() {
           list.push({ label: c.name, value: val });
         }
       });
-      return list;
     }
-    return [...PRICE_OPTIONS];
+    return list;
   }, [categoriesData]);
 
   const dynamicBrandOptions = React.useMemo(() => {
     const backendBrands = categoriesData.filter((c) => c.type === 'brand');
-    if (backendBrands.length > 0) {
-      const list = [{ label: 'Tất cả hãng', value: 'all' }];
-      const seen = new Set(['all']);
-      backendBrands.forEach((b) => {
-        const val = b.name.trim();
-        if (val && !seen.has(val.toLowerCase())) {
-          seen.add(val.toLowerCase());
-          list.push({ label: val, value: val });
-        }
-      });
-      return list;
-    }
-    return [...BRAND_OPTIONS];
-  }, [categoriesData]);
+    const list = [{ label: 'Tất cả hãng', value: 'all' }];
+    const seen = new Set(['all']);
+
+    backendBrands.forEach((b) => {
+      const val = b.name.trim();
+      if (val && !seen.has(val.toLowerCase())) {
+        seen.add(val.toLowerCase());
+        list.push({ label: val, value: val });
+      }
+    });
+
+    products.forEach((p) => {
+      if (p.brand && p.brand.trim() && !seen.has(p.brand.trim().toLowerCase())) {
+        seen.add(p.brand.trim().toLowerCase());
+        list.push({ label: p.brand.trim(), value: p.brand.trim() });
+      }
+    });
+
+    return list;
+  }, [categoriesData, products]);
 
   const dynamicCategoryOptions = React.useMemo(() => {
     const backendCategories = categoriesData.filter((c) => c.type === 'category');
-    if (backendCategories.length > 0) {
-      const list: CategoryOption[] = [{ label: 'Tất cả danh mục', value: 'all', type: 'all' }];
-      const seen = new Set(['all']);
-      backendCategories.forEach((c) => {
-        const val = c.slug || c.name;
-        if (!seen.has(val.toLowerCase())) {
-          seen.add(val.toLowerCase());
-          list.push({
-            label: c.name,
-            value: val,
-            type: 'category',
-          });
-        }
-      });
-      return list;
-    }
+    const list: CategoryOption[] = [{ label: 'Tất cả danh mục', value: 'all', type: 'all' }];
+    const seen = new Set(['all']);
 
-    return [...CATEGORY_OPTIONS];
-  }, [categoriesData]);
+    backendCategories.forEach((c) => {
+      const val = c.slug || c.name;
+      if (!seen.has(val.toLowerCase())) {
+        seen.add(val.toLowerCase());
+        list.push({
+          label: c.name,
+          value: val,
+          type: 'category',
+        });
+      }
+    });
+
+    products.forEach((p) => {
+      if (p.category && p.category.trim() && !seen.has(p.category.trim().toLowerCase())) {
+        seen.add(p.category.trim().toLowerCase());
+        list.push({
+          label: p.category.trim(),
+          value: p.category.trim(),
+          type: 'category',
+        });
+      }
+    });
+
+    return list;
+  }, [categoriesData, products]);
 
   const availableCategories = React.useMemo(() => {
     return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
@@ -233,15 +247,7 @@ function CatalogContent() {
 
   const selectedCategoryLabel =
     dynamicCategoryOptions.find((o) => o.value.toLowerCase() === filters.category.toLowerCase())?.label ||
-    (filters.category === 'may-anh-cu'
-      ? 'Máy ảnh cũ'
-      : filters.category === 'may-anh-chinh-hang'
-      ? 'Máy ảnh chính hãng'
-      : filters.category === 'ong-kinh'
-      ? 'Ống kính (Lens)'
-      : filters.category === 'phu-kien'
-      ? 'Phụ kiện máy ảnh'
-      : filters.category);
+    (filters.category === 'all' ? 'Tất cả danh mục' : filters.category);
   const selectedPriceLabel =
     dynamicPriceOptions.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
   const selectedBrandLabel =

@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const slugify = require('slugify');
-const memoryStore = require('../config/memoryStore');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
@@ -32,93 +31,7 @@ const getProducts = async (req, res) => {
     } = req.query;
 
     if (!isDbConnected()) {
-      let filtered = [...memoryStore.getMemoryProducts()];
-
-      if (isAvailable !== undefined && isAvailable !== '') {
-        const bool = isAvailable === 'true';
-        filtered = filtered.filter((p) => p.isAvailable === bool);
-      }
-
-      if (search && search.trim() !== '') {
-        const s = search.trim().toLowerCase();
-        filtered = filtered.filter(
-          (p) =>
-            p.name.toLowerCase().includes(s) ||
-            p.brand.toLowerCase().includes(s) ||
-            (p.condition && p.condition.toLowerCase().includes(s)) ||
-            (p.description && p.description.toLowerCase().includes(s))
-        );
-      }
-
-      if (brand && brand !== 'all') {
-        const brands = brand.split(',').map((b) => b.trim().toLowerCase());
-        filtered = filtered.filter((p) => brands.includes(p.brand.toLowerCase()));
-      }
-
-      if (priceCategory && priceCategory !== 'all') {
-        const priceCats = priceCategory.split(',').map((p) => p.trim());
-        filtered = filtered.filter((p) => {
-          return priceCats.some((cat) => {
-            if (cat === 'under_3m') return Number(p.price) < 3000000;
-            if (cat === '3m_5m') return Number(p.price) >= 3000000 && Number(p.price) <= 5000000;
-            if (cat === '5m_10m') return Number(p.price) >= 5000000 && Number(p.price) <= 10000000;
-            if (cat === 'above_10m') return Number(p.price) > 10000000;
-            const dbCat = memoryStore.getMemoryCategories().find(
-              (c) => c.type === 'price' && (c.slug === cat || c._id === cat || c.name === cat)
-            );
-            if (dbCat && (dbCat.minPrice !== null || dbCat.maxPrice !== null)) {
-              let match = true;
-              if (dbCat.minPrice !== null && dbCat.minPrice !== undefined) match = match && Number(p.price) >= dbCat.minPrice;
-              if (dbCat.maxPrice !== null && dbCat.maxPrice !== undefined) match = match && Number(p.price) <= dbCat.maxPrice;
-              return match;
-            }
-            return p.priceCategory === cat;
-          });
-        });
-      }
-
-      if (category && category !== 'all') {
-        const categories = category.split(',').map((c) => c.trim().toLowerCase());
-        filtered = filtered.filter(
-          (p) =>
-            categories.includes(p.category?.toLowerCase()) ||
-            categories.includes(p.deviceType?.toLowerCase())
-        );
-      }
-
-      if (deviceType && deviceType !== 'all') {
-        filtered = filtered.filter((p) => p.deviceType?.toLowerCase() === deviceType.toLowerCase());
-      }
-
-      if (sort === 'price_asc') {
-        filtered.sort((a, b) => a.price - b.price);
-      } else if (sort === 'price_desc') {
-        filtered.sort((a, b) => b.price - a.price);
-      } else if (sort === 'views_desc') {
-        filtered.sort((a, b) => (b.views || 0) - (a.views || 0));
-      } else {
-        filtered.sort((a, b) => {
-          const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
-          const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
-          if (orderA !== orderB) return orderA - orderB;
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        });
-      }
-
-      const total = filtered.length;
-      const pageNum = parseInt(page, 10) || 1;
-      const limitNum = parseInt(limit, 10) || 25;
-      const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
-
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      return res.status(200).json({
-        success: true,
-        count: paginated.length,
-        total,
-        totalPages: Math.ceil(total / limitNum) || 1,
-        currentPage: pageNum,
-        products: paginated,
-      });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     const query = {};
@@ -239,22 +152,7 @@ const getProductBySlug = async (req, res) => {
     const { slug } = req.params;
 
     if (!isDbConnected()) {
-      const products = memoryStore.getMemoryProducts();
-      const product = products.find((p) => p.slug === slug || p._id === slug);
-      if (!product) {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm này' });
-      }
-
-      product.views = (product.views || 0) + 1;
-      const related = products
-        .filter((p) => (p.slug !== product.slug && p._id !== product._id) && (p.brand === product.brand || p.priceCategory === product.priceCategory))
-        .slice(0, 4);
-
-      return res.status(200).json({
-        success: true,
-        product,
-        related,
-      });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let query = { slug };
@@ -303,15 +201,7 @@ const getProductById = async (req, res) => {
     const { id } = req.params;
 
     if (!isDbConnected()) {
-      const products = memoryStore.getMemoryProducts();
-      const product = products.find((p) => p._id === id || p.slug === id);
-      if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
-
-      const related = products
-        .filter((p) => (p.slug !== product.slug && p._id !== product._id) && (p.brand === product.brand || p.priceCategory === product.priceCategory))
-        .slice(0, 4);
-
-      return res.status(200).json({ success: true, product, related });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let query = { slug: id };
@@ -384,52 +274,7 @@ const createProduct = async (req, res) => {
     const computedPriceCategory = priceCategory || calculatePriceCategory(Number(price));
 
     if (!isDbConnected()) {
-      const existingProds = memoryStore.getMemoryProducts();
-      let count = 1;
-      while (existingProds.some((p) => p.slug === uniqueSlug)) {
-        uniqueSlug = `${baseSlug}-${count}`;
-        count++;
-      }
-
-      const assignedCategory = category || 'may-anh-cu';
-      const memCats = memoryStore.getMemoryCategories();
-      if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === assignedCategory.toLowerCase())) {
-        memoryStore.addMemoryCategory({
-          name: assignedCategory,
-          slug: assignedCategory,
-          type: 'category',
-          order: memCats.length + 1,
-          isActive: true,
-        });
-      }
-
-      const newProd = {
-        _id: `prod-${Date.now()}`,
-        name,
-        slug: uniqueSlug,
-        price: Number(price),
-        originalPrice: originalPrice ? Number(originalPrice) : 0,
-        condition: condition || 'Ngoại hình 98% - Hoạt động hoàn hảo',
-        brand,
-        priceCategory: computedPriceCategory,
-        category: assignedCategory,
-        deviceType: deviceType || 'Mirrorless',
-        images,
-        description: description || '',
-        accessories: accessories || 'Pin zin, Sạc zin, Dây đeo, Tặng thẻ nhớ 32GB',
-        warranty: warranty || 'Bảo hành 06 tháng phần cứng',
-        isAvailable: isAvailable !== undefined ? isAvailable : true,
-        featured: featured || false,
-        views: 0,
-        order: order !== undefined && order !== '' ? Number(order) : 1,
-        createdAt: new Date().toISOString(),
-      };
-      memoryStore.addMemoryProduct(newProd);
-      return res.status(201).json({
-        success: true,
-        message: 'Đã thêm sản phẩm mới thành công!',
-        product: newProd,
-      });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let count = 1;
@@ -486,28 +331,7 @@ const updateProduct = async (req, res) => {
     const { id } = req.params;
 
     if (!isDbConnected()) {
-      const updates = { ...req.body };
-      if (updates.name) {
-        updates.slug = slugify(updates.name, { lower: true, strict: true, locale: 'vi' }) || 'may-anh';
-      }
-      if (updates.price !== undefined && !updates.priceCategory) {
-        updates.priceCategory = calculatePriceCategory(Number(updates.price));
-      }
-      if (updates.category) {
-        const memCats = memoryStore.getMemoryCategories();
-        if (!memCats.some((c) => (c.slug || c.name || '').toLowerCase() === updates.category.toLowerCase())) {
-          memoryStore.addMemoryCategory({
-            name: updates.category,
-            slug: updates.category,
-            type: 'category',
-            order: memCats.length + 1,
-            isActive: true,
-          });
-        }
-      }
-      const updated = memoryStore.updateMemoryProduct(id, updates);
-      if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm để cập nhật' });
-      return res.status(200).json({ success: true, message: 'Cập nhật thành công', product: updated });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     const product = await Product.findById(id);
@@ -598,8 +422,7 @@ const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     if (!isDbConnected()) {
-      memoryStore.deleteMemoryProduct(id);
-      return res.status(200).json({ success: true, message: 'Đã xóa sản phẩm thành công' });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     await Product.findByIdAndDelete(id);
@@ -615,21 +438,7 @@ const deleteProduct = async (req, res) => {
 const getAdminStats = async (req, res) => {
   try {
     if (!isDbConnected()) {
-      const all = memoryStore.getMemoryProducts();
-      const totalProducts = all.length;
-      const availableProducts = all.filter((p) => p.isAvailable).length;
-      const soldOutProducts = totalProducts - availableProducts;
-
-      return res.status(200).json({
-        success: true,
-        stats: {
-          totalProducts,
-          availableProducts,
-          soldOutProducts,
-          brandStats: [],
-          priceCatStats: [],
-        },
-      });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     const totalProducts = await Product.countDocuments();
@@ -668,18 +477,7 @@ const reorderProducts = async (req, res) => {
     const { productId, newOrder, orderedIds } = req.body;
 
     if (!isDbConnected()) {
-      if (orderedIds && Array.isArray(orderedIds)) {
-        memoryStore.reorderMemoryProductsList(orderedIds);
-        return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm thành công' });
-      }
-      if (productId && newOrder !== undefined) {
-        const updated = memoryStore.reorderMemoryProduct(productId, Number(newOrder));
-        if (!updated) {
-          return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
-        }
-        return res.status(200).json({ success: true, message: 'Đã cập nhật vị trí sản phẩm', product: updated });
-      }
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin vị trí sắp xếp' });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     if (orderedIds && Array.isArray(orderedIds)) {

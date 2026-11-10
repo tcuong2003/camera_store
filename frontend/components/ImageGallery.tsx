@@ -14,10 +14,18 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
   const sanitize = (url: string) => (url ? url.replace(/\.(heic|heif)$/i, '.jpg') : url);
 
-  const rawList = images && images.length > 0 ? images : [
-    'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80',
-  ];
+  const rawList = images && images.length > 0 ? images : [];
   const imageList = rawList.map(sanitize);
+
+  if (imageList.length === 0) {
+    return (
+      <div className="aspect-[4/3] w-full rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+        <Camera className="w-12 h-12 text-slate-300 mb-2" />
+        <span className="text-sm font-semibold text-slate-500">Chưa có ảnh thực tế</span>
+        <span className="text-xs text-slate-400 mt-1">Sản phẩm này hiện chưa được tải ảnh lên hệ thống</span>
+      </div>
+    );
+  }
 
   const currentImage = imageList[selectedIndex];
 
@@ -57,8 +65,6 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
             const target = e.target as HTMLImageElement;
             if (target.src.includes('.heic') || target.src.includes('.heif')) {
               target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-            } else {
-              target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
             }
           }}
           className="w-full h-full object-contain sm:object-cover"
@@ -133,8 +139,6 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                     const target = e.target as HTMLImageElement;
                     if (target.src.includes('.heic') || target.src.includes('.heif')) {
                       target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-                    } else {
-                      target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=200&q=80';
                     }
                   }}
                   className="w-full h-full object-cover"
@@ -183,8 +187,6 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 const target = e.target as HTMLImageElement;
                 if (target.src.includes('.heic') || target.src.includes('.heif')) {
                   target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-                } else {
-                  target.src = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80';
                 }
               }}
               className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"

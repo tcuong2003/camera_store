@@ -87,21 +87,6 @@ const login = async (req, res) => {
 
     const isMatch = await admin.comparePassword(password);
     if (!isMatch) {
-      // Also check fallback default pass if changed
-      if (username === defaultUser && password === defaultPass) {
-        const token = generateToken(admin._id, admin.username);
-        return res.status(200).json({
-          success: true,
-          message: 'Đăng nhập thành công',
-          token,
-          admin: {
-            id: admin._id,
-            username: admin.username,
-            name: admin.name,
-            role: admin.role,
-          },
-        });
-      }
       return res.status(401).json({
         success: false,
         message: 'Tài khoản hoặc mật khẩu không chính xác',

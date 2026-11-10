@@ -51,34 +51,17 @@ const uploadImages = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất 1 ảnh để tải lên' });
     }
 
+    if (!isCloudinaryConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cloudinary chưa được cấu hình (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET). Không thể tải ảnh lên.',
+      });
+    }
+
     const uploadedUrls = [];
-
-    if (isCloudinaryConfigured()) {
-      // Real Cloudinary Upload
-      for (const file of req.files) {
-        const url = await uploadSingleToCloudinary(file.buffer, file.originalname);
-        uploadedUrls.push(url);
-      }
-    } else {
-      // Local fallback storage for development if Cloudinary credentials are not set
-      const uploadsDir = path.join(__dirname, '../public/uploads');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      for (const file of req.files) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        let ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-        if (['.heic', '.heif', '.jfif', '.bmp', '.tiff', '.tif', '.raw', '.dng'].includes(ext)) {
-          ext = '.jpg';
-        }
-        const filename = `camera-${uniqueSuffix}${ext}`;
-        const filePath = path.join(uploadsDir, filename);
-
-        fs.writeFileSync(filePath, file.buffer);
-        const serverUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5001}`;
-        uploadedUrls.push(`${serverUrl}/uploads/${filename}`);
-      }
+    for (const file of req.files) {
+      const url = await uploadSingleToCloudinary(file.buffer, file.originalname);
+      uploadedUrls.push(url);
     }
 
     return res.status(200).json({

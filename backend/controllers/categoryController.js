@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 const slugify = require('slugify');
-const memoryStore = require('../config/memoryStore');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
@@ -14,10 +13,7 @@ const getCategories = async (req, res) => {
     const { type } = req.query;
 
     if (!isDbConnected()) {
-      let cats = [...memoryStore.getMemoryCategories()];
-      if (type) cats = cats.filter((c) => c.type === type);
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      return res.status(200).json({ success: true, categories: cats });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     const query = { isActive: true };
@@ -84,17 +80,7 @@ const createCategory = async (req, res) => {
     if (!slug) slug = `price-${min || 0}-${max || 'max'}`;
 
     if (!isDbConnected()) {
-      const newCat = {
-        name: finalName,
-        slug,
-        type,
-        minPrice: min,
-        maxPrice: max,
-        order: order || 0,
-        isActive: true,
-      };
-      memoryStore.addMemoryCategory(newCat);
-      return res.status(201).json({ success: true, message: 'Tạo danh mục thành công', category: newCat });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let existing = await Category.findOne({ slug });
@@ -138,15 +124,7 @@ const updateCategory = async (req, res) => {
     let max = maxPrice !== undefined && maxPrice !== '' && maxPrice !== null ? Number(maxPrice) : null;
 
     if (!isDbConnected()) {
-      const updated = memoryStore.updateMemoryCategory(req.params.id, {
-        ...(name ? { name, slug: slugify(name, { lower: true, strict: true, locale: 'vi' }) } : {}),
-        ...(type ? { type } : {}),
-        ...(minPrice !== undefined ? { minPrice: min } : {}),
-        ...(maxPrice !== undefined ? { maxPrice: max } : {}),
-        ...(order !== undefined ? { order } : {}),
-        ...(isActive !== undefined ? { isActive } : {}),
-      });
-      return res.status(200).json({ success: true, message: 'Cập nhật danh mục thành công', category: updated });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let category = null;
@@ -222,8 +200,7 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     if (!isDbConnected()) {
-      memoryStore.deleteMemoryCategory(req.params.id);
-      return res.status(200).json({ success: true, message: 'Xóa danh mục thành công' });
+      return res.status(500).json({ success: false, message: 'Cơ sở dữ liệu MongoDB chưa kết nối.' });
     }
 
     let category = null;
