@@ -46,13 +46,39 @@ function CatalogContent() {
     sort: searchParams.get('sort') || 'newest',
   });
 
-  const searchKeyword = searchParams.get('search') || '';
+  const [searchKeyword, setSearchKeyword] = useState<string>(() => searchParams.get('search') || '');
+  const isFirstLoadRef = useRef(true);
+
+  // Sync searchKeyword when searchParams changes (e.g. forward/back browser buttons)
+  useEffect(() => {
+    const fromUrl = searchParams.get('search') || '';
+    if (fromUrl !== searchKeyword) {
+      setSearchKeyword(fromUrl);
+    }
+  }, [searchParams]);
+
+  // Listen to realtime header search events for 0ms reactivity
+  useEffect(() => {
+    const handleHeaderSearch = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setSearchKeyword(customEvent.detail || '');
+      setCurrentPage(1);
+    };
+
+    window.addEventListener('header-search', handleHeaderSearch);
+    return () => {
+      window.removeEventListener('header-search', handleHeaderSearch);
+    };
+  }, []);
 
   // Fetch products whenever filters, search, or page changes
   useEffect(() => {
     let isMounted = true;
     const loadData = async () => {
-      setIsLoading(true);
+      // Only display full-page skeleton on very first initial mount
+      if (isFirstLoadRef.current) {
+        setIsLoading(true);
+      }
       try {
         const res = await fetchProducts({
           search: searchKeyword,
@@ -81,6 +107,7 @@ function CatalogContent() {
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          isFirstLoadRef.current = false;
         }
       }
     };
@@ -92,9 +119,9 @@ function CatalogContent() {
     };
   }, [filters, searchKeyword, currentPage]);
 
-  const updateUrl = (newFilters: FilterState, pageNum: number) => {
+  const updateUrl = (newFilters: FilterState, pageNum: number, searchWord: string = searchKeyword) => {
     const params = new URLSearchParams();
-    if (searchKeyword) params.set('search', searchKeyword);
+    if (searchWord.trim()) params.set('search', searchWord.trim());
     if (newFilters.minPrice) params.set('minPrice', newFilters.minPrice.toString());
     if (newFilters.maxPrice) params.set('maxPrice', newFilters.maxPrice.toString());
     if (newFilters.priceCategory !== 'all') params.set('priceCategory', newFilters.priceCategory);
@@ -104,7 +131,7 @@ function CatalogContent() {
     if (pageNum > 1) params.set('page', pageNum.toString());
 
     const qs = params.toString();
-    router.push(qs ? `/?${qs}` : '/', { scroll: false });
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false });
   };
 
   const handleFilterChange = (newFilters: FilterState) => {
@@ -122,14 +149,21 @@ function CatalogContent() {
   };
 
   const handleReset = () => {
-    handleFilterChange({
+    setSearchKeyword('');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('header-search', { detail: '' }));
+    }
+    const newFilters: FilterState = {
       priceCategory: 'all',
       minPrice: null,
       maxPrice: null,
       brand: 'all',
       category: 'all',
       sort: 'newest',
-    });
+    };
+    setFilters(newFilters);
+    setCurrentPage(1);
+    router.replace('/', { scroll: false });
   };
 
   const [categoriesData, setCategoriesData] = useState<Category[]>([]);
@@ -259,60 +293,8 @@ function CatalogContent() {
     (filters.category !== 'all' ? 1 : 0) +
     (filters.sort !== 'newest' ? 1 : 0);
 
-  const formatShortPrice = (num: number): string => {
-    if (num >= 1000000) {
-      const m = num / 1000000;
-      return Number.isInteger(m) ? `${m} tr` : `${m.toFixed(1)} tr`;
-    }
-    return `${Math.round(num / 1000)}k`;
-  };
-
-  const selectedCategoryLabel =
-    dynamicCategoryOptions.find((o) => o.value.toLowerCase() === filters.category.toLowerCase())?.label ||
-    (filters.category === 'all' ? 'Tất cả danh mục' : filters.category);
-
-  const selectedPriceLabel = React.useMemo(() => {
-    if (filters.minPrice && filters.maxPrice) {
-      return `${formatShortPrice(filters.minPrice)} - ${formatShortPrice(filters.maxPrice)}`;
-    }
-    if (filters.minPrice && !filters.maxPrice) {
-      return `Từ ${formatShortPrice(filters.minPrice)}`;
-    }
-    if (!filters.minPrice && filters.maxPrice) {
-      return `Dưới ${formatShortPrice(filters.maxPrice)}`;
-    }
-    if (filters.priceCategory && filters.priceCategory !== 'all') {
-      const found = dynamicPriceOptions.find((o) => o.value === filters.priceCategory);
-      if (found) return found.label;
-    }
-    return 'Khoảng giá';
-  }, [filters.minPrice, filters.maxPrice, filters.priceCategory, dynamicPriceOptions]);
-  const selectedBrandLabel =
-    dynamicBrandOptions.find((o) => o.value.toLowerCase() === filters.brand.toLowerCase())?.label ||
-    filters.brand ||
-    'Thương hiệu';
-  const selectedSortLabel = SORT_OPTIONS.find((o) => o.value === filters.sort)?.label || 'Sắp xếp';
-
   return (
     <div ref={catalogTopRef} className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 sm:pb-3 space-y-4 sm:space-y-6">
-      {/* Search keyword display indicator */}
-      {searchKeyword && (
-        <div className="flex items-center justify-between bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm text-slate-800">
-          <span>
-            Kết quả tìm kiếm cho: <strong className="text-amber-700 font-mono">&ldquo;{searchKeyword}&rdquo;</strong> ({totalCount} máy)
-          </span>
-          <button
-            onClick={() => {
-              setCurrentPage(1);
-              router.push('/');
-            }}
-            className="text-amber-700 hover:text-amber-900 underline font-semibold"
-          >
-            Xóa tìm kiếm
-          </button>
-        </div>
-      )}
-
       {/* 2. Product Grid Section with 3 Sub-filters (Danh mục, Khoảng giá & Thương hiệu) */}
       <section className="space-y-4 w-full">
         {/* Header Bar:
@@ -419,72 +401,6 @@ function CatalogContent() {
             />
           </div>
         </div>
-
-        {/* Active Filter Chips (if any filter is selected) */}
-        {activeFilterCount > 0 && (
-          <div className="flex items-center gap-2 flex-wrap text-xs px-1">
-            <span className="text-slate-500 font-medium">Đang lọc:</span>
-            {filters.category !== 'all' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
-                <span>{selectedCategoryLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, category: 'all' })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ lọc danh mục"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {hasPriceFilter && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
-                <span>{selectedPriceLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, priceCategory: 'all', minPrice: null, maxPrice: null })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ lọc giá"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {filters.brand !== 'all' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
-                <span>{selectedBrandLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, brand: 'all' })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ lọc thương hiệu"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {filters.sort !== 'newest' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-xs">
-                <span>{selectedSortLabel}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, sort: 'newest' })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ sắp xếp"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleReset}
-              className="text-xs text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer ml-1"
-            >
-              Xóa tất cả
-            </button>
-          </div>
-        )}
 
         {/* Mobile Bottom Sheet Modal */}
         <FilterBottomSheet

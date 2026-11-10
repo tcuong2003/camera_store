@@ -5,6 +5,9 @@ const slugify = require('slugify');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
+// Helper to safely escape regex special characters
+const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&');
+
 // Helper to determine priceCategory based on price
 const calculatePriceCategory = (price) => {
   if (price < 3000000) return 'under_3m';
@@ -43,13 +46,11 @@ const getProducts = async (req, res) => {
     }
 
     if (search && search.trim() !== '') {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const escaped = escapeRegex(search.trim());
+      const searchRegex = new RegExp(escaped, 'i');
       query.$or = [
         { name: searchRegex },
         { brand: searchRegex },
-        { condition: searchRegex },
-        { description: searchRegex },
-        { category: searchRegex },
       ];
     }
 

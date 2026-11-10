@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Camera, Search, Phone, MessageSquare, X } from 'lucide-react';
 
 function SearchInput({
@@ -13,23 +13,102 @@ function SearchInput({
   onClose?: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.get('search') || '';
   const [searchTerm, setSearchTerm] = useState(currentSearch);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync with URL search param when changed externally (reset button, filter chip, or back button)
+  useEffect(() => {
+    if (!isTypingRef.current && searchTerm !== currentSearch) {
+      setSearchTerm(currentSearch);
+    }
+  }, [currentSearch]);
+
+  // Listen to search sync events (e.g. from page reset filters)
+  useEffect(() => {
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      const newQuery = customEvent.detail || '';
+      if (document.activeElement !== inputRef.current) {
+        setSearchTerm(newQuery);
+      }
+    };
+    window.addEventListener('header-search', handleSync);
+    return () => window.removeEventListener('header-search', handleSync);
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  const applySearch = (value: string) => {
+    const trimmed = value.trim();
+    const params = new URLSearchParams(searchParams.toString());
+    if (trimmed) {
+      params.set('search', trimmed);
+    } else {
+      params.delete('search');
+    }
+    params.delete('page'); // Reset to page 1
+
+    const qs = params.toString();
+    const targetUrl = qs ? `/?${qs}` : '/';
+
+    // Broadcast instant search event so catalog updates with 0ms latency
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('header-search', { detail: trimmed }));
+    }
+
+    if (pathname === '/') {
+      router.replace(targetUrl, { scroll: false });
+    } else {
+      router.push(targetUrl);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    isTypingRef.current = true;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Fast debounce: 150ms for smooth typing with instant real-time response; 30ms if empty
+    debounceTimerRef.current = setTimeout(() => {
+      applySearch(val);
+      isTypingRef.current = false;
+    }, val === '' ? 30 : 150);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/?search=${encodeURIComponent(searchTerm.trim())}`);
-    } else {
-      router.push('/');
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
+    applySearch(searchTerm);
+    isTypingRef.current = false;
     if (onClose) onClose();
   };
 
   const clearSearch = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     setSearchTerm('');
-    router.push('/');
+    isTypingRef.current = false;
+    applySearch('');
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
     if (onClose) onClose();
   };
 
@@ -37,19 +116,20 @@ function SearchInput({
     return (
       <form onSubmit={handleSearchSubmit} className="relative w-full">
         <input
+          ref={inputRef}
           type="text"
           placeholder="Tìm model máy (Sony, Canon, Fuji...)"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleInputChange}
           autoFocus
-          className="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-11 pr-10 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+          className="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 pl-11 pr-10 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
         />
         <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
         {searchTerm && (
           <button
             type="button"
             onClick={clearSearch}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -61,10 +141,11 @@ function SearchInput({
   return (
     <form onSubmit={handleSearchSubmit} className="relative w-full">
       <input
+        ref={inputRef}
         type="text"
         placeholder="Tìm tên máy (Canon 60D, Sony A6000, Fuji X-T20...)"
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={handleInputChange}
         className="w-full bg-slate-100 border border-slate-200 rounded-full py-2.5 pl-11 pr-10 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 focus:bg-white transition-all shadow-inner"
       />
       <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -72,7 +153,7 @@ function SearchInput({
         <button
           type="button"
           onClick={clearSearch}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -83,6 +164,10 @@ function SearchInput({
 
 export default function Navbar() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const pathname = usePathname();
+  const isAdmin =
+    (pathname && pathname.startsWith('/admin')) ||
+    (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'));
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
@@ -105,23 +190,27 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Search Bar wrapped in Suspense */}
-          <div className="hidden md:flex flex-1 max-w-xl lg:max-w-2xl mx-4 sm:mx-6 lg:mx-8">
-            <Suspense fallback={<div className="w-full h-10 bg-slate-100 rounded-full animate-pulse" />}>
-              <SearchInput />
-            </Suspense>
-          </div>
+          {/* Desktop Search Bar (Hidden on Admin Portal) */}
+          {!isAdmin && (
+            <div className="hidden md:flex flex-1 max-w-xl lg:max-w-2xl mx-4 sm:mx-6 lg:mx-8">
+              <Suspense fallback={<div className="w-full h-10 bg-slate-100 rounded-full animate-pulse" />}>
+                <SearchInput />
+              </Suspense>
+            </div>
+          )}
 
           {/* Action Contact Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Mobile search toggle */}
-            <button
-              onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer"
-              aria-label="Tìm kiếm"
-            >
-              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+            {/* Mobile search toggle (Hidden on Admin Portal) */}
+            {!isAdmin && (
+              <button
+                onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer"
+                aria-label="Tìm kiếm"
+              >
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
 
             {/* Hotline call */}
             <a
@@ -150,8 +239,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Search Input Drawer */}
-        {isMobileSearchOpen && (
+        {/* Mobile Search Input Drawer (Hidden on Admin Portal) */}
+        {!isAdmin && isMobileSearchOpen && (
           <div className="md:hidden py-3 pb-4 border-t border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
             <Suspense fallback={<div className="w-full h-10 bg-slate-100 rounded-xl animate-pulse" />}>
               <SearchInput isMobile onClose={() => setIsMobileSearchOpen(false)} />
