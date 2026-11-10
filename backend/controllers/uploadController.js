@@ -58,11 +58,11 @@ const uploadImages = async (req, res) => {
       });
     }
 
-    const uploadedUrls = [];
-    for (const file of req.files) {
-      const url = await uploadSingleToCloudinary(file.buffer, file.originalname);
-      uploadedUrls.push(url);
-    }
+    // Upload all images in parallel to Cloudinary
+    const uploadPromises = req.files.map((file) =>
+      uploadSingleToCloudinary(file.buffer, file.originalname)
+    );
+    const uploadedUrls = await Promise.all(uploadPromises);
 
     return res.status(200).json({
       success: true,
