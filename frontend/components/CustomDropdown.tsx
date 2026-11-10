@@ -46,7 +46,7 @@ export default function CustomDropdown({
   const selectedOption = options.find((opt) => opt.value === value);
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
-  // Handle click outside to close dropdown
+  // Handle click outside to close dropdown & close on page scroll
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -62,14 +62,25 @@ export default function CustomDropdown({
       }
     };
 
+    const handleScroll = (event: Event) => {
+      // Don't close if user is scrolling inside the options popover
+      if (containerRef.current && containerRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+      setIsAddingNew(false);
+    };
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, { capture: true });
     };
   }, [isOpen]);
 
@@ -131,7 +142,7 @@ export default function CustomDropdown({
               : align === 'right'
               ? 'left-0 sm:left-auto sm:right-0 w-full sm:w-64 max-w-[calc(100vw-2rem)]'
               : 'left-0 w-full sm:w-64 max-w-[calc(100vw-2rem)]'
-          } bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden`}
+          } bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-150 overflow-hidden`}
         >
           {/* Pinned top: Add New option */}
           {onAddNew && (

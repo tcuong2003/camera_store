@@ -30,6 +30,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   const thumbnail = rawThumbnail.replace(/\.(heic|heif)$/i, '.jpg');
   const imageCount = product.images?.length || 1;
   const plainDesc = stripHtml(product.description);
+  const displayBrand = !product.brand || !product.brand.trim() || product.brand.toLowerCase() === 'other' || product.brand.toLowerCase() === 'khac'
+    ? 'Khác'
+    : product.brand;
 
   const productPath = product._id || product.slug;
 
@@ -76,7 +79,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Brand Tag (Bottom-left overlay) */}
         <div className="absolute bottom-2.5 left-2.5 z-10">
           <span className="px-2 py-0.5 rounded-md bg-white/90 backdrop-blur-sm text-slate-800 text-[11px] font-bold border border-slate-200 shadow-sm">
-            {product.brand}
+            {displayBrand}
           </span>
         </div>
       </div>

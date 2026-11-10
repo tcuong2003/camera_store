@@ -223,6 +223,12 @@ export default function AdminPage() {
   const [newCatType, setNewCatType] = useState<'category' | 'brand' | 'price'>('category');
   const [categoryFilterType, setCategoryFilterType] = useState<string>('all');
 
+  // Price range specific state
+  const [newPriceMin, setNewPriceMin] = useState<string>('');
+  const [newPriceMax, setNewPriceMax] = useState<string>('');
+  const [editPriceMin, setEditPriceMin] = useState<string>('');
+  const [editPriceMax, setEditPriceMax] = useState<string>('');
+
   // Category Edit state
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCatName, setEditCatName] = useState('');
@@ -707,12 +713,12 @@ export default function AdminPage() {
       ).length;
     }
 
-    let noteText = 'Nhãn này sẽ được gỡ hoàn toàn khỏi hệ thống bộ lọc.';
+    let noteText = 'Nhãn này sẽ được xóa hoàn toàn khỏi hệ thống.';
     if (attachedCount > 0) {
       if (isBrand) {
-        noteText = `⚠️ Đang có ${attachedCount} máy ảnh thuộc hãng này. Khi xóa nhãn, các máy ảnh này sẽ được chuyển an toàn sang hãng 'Khác' để giữ trọn vẹn thông tin và ảnh máy.`;
+        noteText = `Đang có ${attachedCount} máy ảnh thuộc hãng này. Việc xóa thương hiệu sẽ không ảnh hưởng hay làm mất sản phẩm, chỉ bỏ gán nhãn của thương hiệu này.`;
       } else if (isCat) {
-        noteText = `⚠️ Đang có ${attachedCount} máy ảnh thuộc danh mục này. Khi xóa nhãn, các máy ảnh này sẽ được chuyển an toàn sang 'Máy ảnh cũ' để giữ trọn vẹn thông tin và ảnh máy.`;
+        noteText = `Đang có ${attachedCount} máy ảnh thuộc danh mục này. Việc xóa danh mục sẽ không ảnh hưởng hay làm mất sản phẩm, chỉ bỏ gán nhãn danh mục này.`;
       }
     }
 
@@ -754,24 +760,29 @@ export default function AdminPage() {
         showToast(`Đã xóa thành công "${pName}" khỏi kho hàng!`, 'success');
       } else if (confirmDialog.itemType === 'category') {
         const cat = confirmDialog.category;
-        const idx = confirmDialog.categoryIndex;
-        if (cat?._id && token) {
+        const targetId = cat?._id || cat?.slug || cat?.name;
+        if (targetId && token) {
           try {
-            await adminDeleteCategory(cat._id, token);
+            await adminDeleteCategory(targetId, token);
           } catch (err) {
             console.error(err);
           }
         }
-        if (idx !== undefined) {
-          setCategories((prev) => prev.filter((_, i) => i !== idx));
-        } else if (cat?._id) {
-          setCategories((prev) => prev.filter((c) => c._id !== cat._id));
+        if (cat) {
+          setCategories((prev) =>
+            prev.filter((c) => {
+              if (cat._id && c._id && c._id === cat._id) return false;
+              if (cat.slug && c.slug && c.slug.toLowerCase() === cat.slug.toLowerCase()) return false;
+              return c.name.toLowerCase() !== cat.name.toLowerCase();
+            })
+          );
         }
         if (cat?.name) {
           setExtraCategories((prev) => prev.filter((c) => c.label !== cat.name && c.value !== cat.name));
+          setExtraBrands((prev) => prev.filter((b) => b !== cat.name));
         }
 
-        // Automatically update affected products in client state safely
+        // Automatically update affected products in client state safely (unlinked products lose brand/category)
         if (cat) {
           const cName = cat.name.toLowerCase();
           const cSlug = (cat.slug || '').toLowerCase();
@@ -780,7 +791,7 @@ export default function AdminPage() {
               prev.map((p) =>
                 (p.brand && p.brand.toLowerCase() === cName) ||
                 (cSlug && p.brand && p.brand.toLowerCase() === cSlug)
-                  ? { ...p, brand: 'Khác' }
+                  ? { ...p, brand: '' }
                   : p
               )
             );
@@ -789,7 +800,7 @@ export default function AdminPage() {
               prev.map((p) =>
                 (p.category && p.category.toLowerCase() === (cSlug || cName)) ||
                 (p.category && p.category.toLowerCase() === cName)
-                  ? { ...p, category: 'may-anh-cu' }
+                  ? { ...p, category: '' }
                   : p
               )
             );
@@ -914,8 +925,67 @@ export default function AdminPage() {
     }
   };
 
+  const formatMillionLabel = (num: number) => {
+    if (num >= 1000000) {
+      const m = num / 1000000;
+      return Number.isInteger(m) ? `${m} triệu` : `${m.toFixed(1)} triệu`;
+    }
+    return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
+  };
+
+  const generatePriceLabel = (minStr: string, maxStr: string) => {
+    const min = minStr ? Number(minStr.replace(/\D/g, '')) : null;
+    const max = maxStr ? Number(maxStr.replace(/\D/g, '')) : null;
+    if (min === null && max !== null) return `Dưới ${formatMillionLabel(max)}`;
+    if (min !== null && max !== null) return `${formatMillionLabel(min)} - ${formatMillionLabel(max)}`;
+    if (min !== null && max === null) return `Trên ${formatMillionLabel(min)}`;
+    return '';
+  };
+
   // Category Add for specific tab
   const handleAddCategoryForTab = async (type: 'brand' | 'category' | 'price') => {
+    if (type === 'price') {
+      const minNum = newPriceMin ? Number(newPriceMin.replace(/\D/g, '')) : null;
+      const maxNum = newPriceMax ? Number(newPriceMax.replace(/\D/g, '')) : null;
+      if (minNum === null && maxNum === null) {
+        showToast('Vui lòng nhập giá từ hoặc giá đến của khoảng giá', 'error');
+        return;
+      }
+      if (minNum !== null && maxNum !== null && minNum > maxNum) {
+        showToast('Giá từ không thể lớn hơn giá đến', 'error');
+        return;
+      }
+
+      const finalName = newCatName.trim() || generatePriceLabel(newPriceMin, newPriceMax);
+      try {
+        const res = await adminCreateCategory(
+          { name: finalName, type: 'price', minPrice: minNum, maxPrice: maxNum },
+          token || ''
+        );
+        if (res && res.category) {
+          setCategories((prev) => [...prev, res.category]);
+        } else {
+          setCategories((prev) => [
+            ...prev,
+            {
+              name: finalName,
+              slug: finalName.toLowerCase().replace(/\s+/g, '-'),
+              type: 'price',
+              minPrice: minNum,
+              maxPrice: maxNum,
+            },
+          ]);
+        }
+        showToast(`Đã thêm khoảng giá "${finalName}" thành công!`, 'success');
+        setNewPriceMin('');
+        setNewPriceMax('');
+        setNewCatName('');
+      } catch (err) {
+        showToast('Lỗi khi thêm: ' + String(err), 'error');
+      }
+      return;
+    }
+
     if (!newCatName.trim()) {
       showToast('Vui lòng nhập tên trước khi bấm thêm', 'error');
       return;
@@ -1028,26 +1098,46 @@ export default function AdminPage() {
   const handleOpenEditCategory = (cat: Category) => {
     setEditingCategory(cat);
     setEditCatName(cat.name);
+    setEditPriceMin(cat.minPrice !== undefined && cat.minPrice !== null ? String(cat.minPrice) : '');
+    setEditPriceMax(cat.maxPrice !== undefined && cat.maxPrice !== null ? String(cat.maxPrice) : '');
     setIsEditCatModalOpen(true);
   };
 
   const handleSaveEditCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCategory || !editCatName.trim()) {
+    if (!editingCategory) return;
+
+    const targetType = editingCategory.type || 'category';
+    let minNum: number | null = null;
+    let maxNum: number | null = null;
+
+    if (targetType === 'price') {
+      minNum = editPriceMin ? Number(editPriceMin.replace(/\D/g, '')) : null;
+      maxNum = editPriceMax ? Number(editPriceMax.replace(/\D/g, '')) : null;
+      if (minNum === null && maxNum === null) {
+        showToast('Vui lòng nhập giá từ hoặc giá đến của khoảng giá', 'error');
+        return;
+      }
+      if (minNum !== null && maxNum !== null && minNum > maxNum) {
+        showToast('Giá từ không thể lớn hơn giá đến', 'error');
+        return;
+      }
+    }
+
+    const trimmed = editCatName.trim() || (targetType === 'price' ? generatePriceLabel(editPriceMin, editPriceMax) : '');
+    if (!trimmed) {
       showToast('Vui lòng nhập tên hợp lệ', 'error');
       return;
     }
 
-    const trimmed = editCatName.trim();
     setIsSavingCategory(true);
 
     try {
       const catId = editingCategory._id || editingCategory.slug || editingCategory.name;
-      const targetType = editingCategory.type || 'category';
       if (token) {
         await adminUpdateCategory(
           catId,
-          { name: trimmed, type: targetType },
+          { name: trimmed, type: targetType, minPrice: minNum, maxPrice: maxNum },
           token
         );
       }
@@ -1060,10 +1150,36 @@ export default function AdminPage() {
                 name: trimmed,
                 slug: trimmed.toLowerCase().replace(/\s+/g, '-'),
                 type: targetType,
+                minPrice: minNum,
+                maxPrice: maxNum,
               }
             : c
         )
       );
+
+      // Synchronize products state on brand/category rename
+      const oldName = editingCategory.name.toLowerCase();
+      const oldSlug = (editingCategory.slug || '').toLowerCase();
+      if (targetType === 'brand') {
+        setProducts((prev) =>
+          prev.map((p) =>
+            (p.brand && p.brand.toLowerCase() === oldName) ||
+            (oldSlug && p.brand && p.brand.toLowerCase() === oldSlug)
+              ? { ...p, brand: trimmed }
+              : p
+          )
+        );
+      } else if (targetType === 'category') {
+        const newCatSlug = trimmed.toLowerCase().replace(/\s+/g, '-');
+        setProducts((prev) =>
+          prev.map((p) =>
+            (p.category && p.category.toLowerCase() === oldName) ||
+            (oldSlug && p.category && p.category.toLowerCase() === oldSlug)
+              ? { ...p, category: newCatSlug }
+              : p
+          )
+        );
+      }
 
       const typeLabel =
         targetType === 'brand' ? 'thương hiệu' : targetType === 'price' ? 'khoảng giá' : 'danh mục';
@@ -1088,12 +1204,12 @@ export default function AdminPage() {
       const s = searchTerm.toLowerCase();
       const match =
         p.name.toLowerCase().includes(s) ||
-        p.brand.toLowerCase().includes(s) ||
+        (p.brand || '').toLowerCase().includes(s) ||
         (p.condition && p.condition.toLowerCase().includes(s)) ||
         (p.slug && p.slug.toLowerCase().includes(s));
       if (!match) return false;
     }
-    if (filterBrand !== 'all' && p.brand.toLowerCase() !== filterBrand.toLowerCase()) {
+    if (filterBrand !== 'all' && (p.brand || '').toLowerCase() !== filterBrand.toLowerCase()) {
       return false;
     }
     if (filterCategory !== 'all') {
@@ -1115,14 +1231,16 @@ export default function AdminPage() {
 
   // Distinct brand list for filtering & display - synchronized from database
   const allBrands = useMemo(() => {
+    const brandCats = categories.filter((c) => c.type === 'brand');
+    if (brandCats.length > 0) {
+      const brandSet = new Set<string>();
+      brandCats.forEach((c) => brandSet.add(c.name));
+      extraBrands.forEach((b) => brandSet.add(b));
+      return Array.from(brandSet).filter(Boolean);
+    }
+
     const brandSet = new Set<string>();
-
-    categories
-      .filter((c) => c.type === 'brand')
-      .forEach((c) => brandSet.add(c.name));
-
     extraBrands.forEach((b) => brandSet.add(b));
-
     products.forEach((p) => {
       if (p.brand) brandSet.add(p.brand);
     });
@@ -1152,18 +1270,28 @@ export default function AdminPage() {
   ], []);
 
   const allCategoryOptions: DropdownOption[] = useMemo(() => {
-    const list: DropdownOption[] = [...baseCategoryOptions];
-    const seen = new Set(list.map((c) => c.value.toLowerCase()));
-
-    categories
-      .filter((c) => c.type === 'category' || !c.type)
-      .forEach((c) => {
+    const mainCats = categories.filter((c) => c.type === 'category' || !c.type);
+    if (mainCats.length > 0) {
+      const list: DropdownOption[] = [];
+      const seen = new Set<string>();
+      mainCats.forEach((c) => {
         const slug = c.slug || c.name;
         if (!seen.has(slug.toLowerCase()) && slug.toLowerCase() !== 'all') {
           seen.add(slug.toLowerCase());
           list.push({ label: c.name, value: slug });
         }
       });
+      extraCategories.forEach((c) => {
+        if (!seen.has(c.value.toLowerCase())) {
+          seen.add(c.value.toLowerCase());
+          list.push(c);
+        }
+      });
+      return list;
+    }
+
+    const list: DropdownOption[] = [...baseCategoryOptions];
+    const seen = new Set(list.map((c) => c.value.toLowerCase()));
 
     extraCategories.forEach((c) => {
       if (!seen.has(c.value.toLowerCase())) {
@@ -1172,15 +1300,8 @@ export default function AdminPage() {
       }
     });
 
-    products.forEach((p) => {
-      if (p.category && !seen.has(p.category.toLowerCase())) {
-        seen.add(p.category.toLowerCase());
-        list.push({ label: p.category, value: p.category });
-      }
-    });
-
     return list;
-  }, [baseCategoryOptions, categories, extraCategories, products]);
+  }, [baseCategoryOptions, categories, extraCategories]);
 
   const filterBrandOptions: DropdownOption[] = [
     { label: 'Tất cả hãng', value: 'all' },
@@ -1273,7 +1394,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+    <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Admin Dashboard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
@@ -1656,7 +1777,9 @@ export default function AdminPage() {
                           </td>
                           <td className="py-3.5 px-3 text-center whitespace-nowrap">
                             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 whitespace-nowrap inline-block">
-                              {p.brand}
+                              {!p.brand || !p.brand.trim() || p.brand.toLowerCase() === 'other' || p.brand.toLowerCase() === 'khac'
+                                ? 'Khác'
+                                : p.brand}
                             </span>
                           </td>
                           <td className="py-3.5 px-3 text-center whitespace-nowrap">
@@ -1718,7 +1841,7 @@ export default function AdminPage() {
             </div>
 
             {/* Admin Table Pagination */}
-            {totalPages > 1 && (
+            {filteredProducts.length > 0 && (
               <div className="px-4 py-3.5 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
                 <div>
                   Hiển thị{' '}
@@ -1796,29 +1919,102 @@ export default function AdminPage() {
                   <FolderPlus className="w-5 h-5 text-amber-500" />
                   <h3 className="font-bold text-slate-900 text-base">{cfg.title}</h3>
                 </div>
-                <div className="flex flex-wrap gap-3 items-center">
-                  <input
-                    type="text"
-                    placeholder={cfg.inputPlaceholder}
-                    value={newCatName}
-                    onChange={(e) => setNewCatName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCategoryForTab(activeTab);
-                      }
-                    }}
-                    className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAddCategoryForTab(activeTab)}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>{cfg.buttonLabel}</span>
-                  </button>
-                </div>
+
+                {activeTab === 'price' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] gap-3 items-end">
+                    {/* Giá từ */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Giá từ (VNĐ)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 3000000 (để trống = 0đ)"
+                        value={newPriceMin ? new Intl.NumberFormat('vi-VN').format(Number(newPriceMin)) : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setNewPriceMin(raw);
+                          const autoName = generatePriceLabel(raw, newPriceMax);
+                          if (autoName) setNewCatName(autoName);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Giá đến */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Giá đến (VNĐ)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 5000000 (để trống = trở lên)"
+                        value={newPriceMax ? new Intl.NumberFormat('vi-VN').format(Number(newPriceMax)) : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setNewPriceMax(raw);
+                          const autoName = generatePriceLabel(newPriceMin, raw);
+                          if (autoName) setNewCatName(autoName);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Tên khoảng giá */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Tên hiển thị khoảng giá *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Tự động hoặc tự nhập (VD: 3 - 5 triệu)"
+                        value={newCatName}
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCategoryForTab('price');
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Nút Thêm khoảng giá (cùng 1 row trên desktop) */}
+                    <button
+                      type="button"
+                      onClick={() => handleAddCategoryForTab('price')}
+                      className="h-[42px] flex items-center justify-center gap-2 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Thêm khoảng giá</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <input
+                      type="text"
+                      placeholder={cfg.inputPlaceholder}
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCategoryForTab(activeTab);
+                        }
+                      }}
+                      className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddCategoryForTab(activeTab)}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>{cfg.buttonLabel}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Items Grid */}
@@ -1853,8 +2049,16 @@ export default function AdminPage() {
                             >
                               {cfg.typeLabel}
                             </span>
-                            <span className="text-[11px] font-mono text-slate-400 truncate max-w-[120px]">
-                              {c.slug}
+                            <span className="text-[11px] font-mono text-slate-500 font-medium truncate max-w-[130px]">
+                              {c.type === 'price' && (c.minPrice !== null || c.maxPrice !== null)
+                                ? c.minPrice !== null && c.minPrice !== undefined && c.maxPrice !== null && c.maxPrice !== undefined
+                                  ? `${formatVND(c.minPrice)} - ${formatVND(c.maxPrice)}`
+                                  : c.maxPrice !== null && c.maxPrice !== undefined
+                                  ? `< ${formatVND(c.maxPrice)}`
+                                  : c.minPrice !== null && c.minPrice !== undefined
+                                  ? `> ${formatVND(c.minPrice)}`
+                                  : c.slug
+                                : c.slug}
                             </span>
                           </div>
                         </div>
@@ -1889,7 +2093,7 @@ export default function AdminPage() {
       {/* EDIT CATEGORY / BRAND / PRICE MODAL */}
       {mounted && isEditCatModalOpen && editingCategory && createPortal(
         <div 
-          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-200"
+          className="fixed inset-0 w-screen h-screen min-h-screen z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-200"
           onClick={() => setIsEditCatModalOpen(false)}
         >
           <div 
@@ -1919,30 +2123,79 @@ export default function AdminPage() {
 
             {/* Form */}
             <form onSubmit={handleSaveEditCategory} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {editingCategory.type === 'brand'
-                    ? 'Tên thương hiệu *'
-                    : editingCategory.type === 'price'
-                    ? 'Tên khoảng giá *'
-                    : 'Tên danh mục sản phẩm *'}
-                </label>
-                <input
-                  type="text"
-                  value={editCatName}
-                  onChange={(e) => setEditCatName(e.target.value)}
-                  placeholder={
-                    editingCategory.type === 'brand'
-                      ? 'Ví dụ: Sony, Leica, Canon, Fujifilm...'
-                      : editingCategory.type === 'price'
-                      ? 'Ví dụ: Dưới 3 triệu, 3 - 5 triệu...'
-                      : 'Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính...'
-                  }
-                  required
-                  autoFocus
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                />
-              </div>
+              {editingCategory.type === 'price' ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Giá từ (VNĐ)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 3000000 (để trống = 0đ)"
+                        value={editPriceMin ? new Intl.NumberFormat('vi-VN').format(Number(editPriceMin)) : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setEditPriceMin(raw);
+                          const autoName = generatePriceLabel(raw, editPriceMax);
+                          if (autoName) setEditCatName(autoName);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Giá đến (VNĐ)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: 5000000 (để trống = trở lên)"
+                        value={editPriceMax ? new Intl.NumberFormat('vi-VN').format(Number(editPriceMax)) : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setEditPriceMax(raw);
+                          const autoName = generatePriceLabel(editPriceMin, raw);
+                          if (autoName) setEditCatName(autoName);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Tên hiển thị khoảng giá *
+                    </label>
+                    <input
+                      type="text"
+                      value={editCatName}
+                      onChange={(e) => setEditCatName(e.target.value)}
+                      placeholder="Tự động hoặc tự nhập (VD: 3 - 5 triệu)"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    {editingCategory.type === 'brand' ? 'Tên thương hiệu *' : 'Tên danh mục sản phẩm *'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editCatName}
+                    onChange={(e) => setEditCatName(e.target.value)}
+                    placeholder={
+                      editingCategory.type === 'brand'
+                        ? 'Ví dụ: Sony, Leica, Canon, Fujifilm...'
+                        : 'Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính...'
+                    }
+                    required
+                    autoFocus
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button
@@ -1969,7 +2222,7 @@ export default function AdminPage() {
       {/* CREATE / EDIT PRODUCT MODAL */}
       {mounted && isModalOpen && createPortal(
         <div 
-          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overscroll-contain animate-in fade-in duration-150"
+          className="fixed inset-0 w-screen h-screen min-h-screen z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overscroll-contain animate-in fade-in duration-150"
           onClick={() => !uploadingImages && setIsModalOpen(false)}
         >
           <div 
@@ -2279,7 +2532,7 @@ export default function AdminPage() {
       {/* UNIFIED CONFIRM DELETE DIALOG (FOR PRODUCT & CATEGORY DELETIONS) */}
       {mounted && confirmDialog.isOpen && createPortal(
         <div 
-          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-150"
+          className="fixed inset-0 w-screen h-screen min-h-screen z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-150"
           onClick={handleCancelConfirm}
         >
           <div 
@@ -2352,7 +2605,7 @@ export default function AdminPage() {
 
       {/* GLOBAL TOAST NOTIFICATION */}
       {mounted && toast && createPortal(
-        <div className="fixed top-6 right-6 z-[60] flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl border border-slate-700/60 animate-in slide-in-from-top-4 fade-in duration-200 max-w-sm sm:max-w-md">
+        <div className="fixed top-6 right-6 z-[10000] flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl border border-slate-700/60 animate-in slide-in-from-top-4 fade-in duration-200 max-w-sm sm:max-w-md">
           {toast.type === 'success' && (
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />

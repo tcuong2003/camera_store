@@ -26,6 +26,8 @@ export interface Category {
   name: string;
   slug: string;
   type: 'price' | 'brand' | 'device_type' | 'category';
+  minPrice?: number | null;
+  maxPrice?: number | null;
   order?: number;
   isActive?: boolean;
 }

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const slugify = require('slugify');
 const memoryStore = require('../config/memoryStore');
 
@@ -56,7 +57,24 @@ const getProducts = async (req, res) => {
 
       if (priceCategory && priceCategory !== 'all') {
         const priceCats = priceCategory.split(',').map((p) => p.trim());
-        filtered = filtered.filter((p) => priceCats.includes(p.priceCategory));
+        filtered = filtered.filter((p) => {
+          return priceCats.some((cat) => {
+            if (cat === 'under_3m') return Number(p.price) < 3000000;
+            if (cat === '3m_5m') return Number(p.price) >= 3000000 && Number(p.price) <= 5000000;
+            if (cat === '5m_10m') return Number(p.price) >= 5000000 && Number(p.price) <= 10000000;
+            if (cat === 'above_10m') return Number(p.price) > 10000000;
+            const dbCat = memoryStore.getMemoryCategories().find(
+              (c) => c.type === 'price' && (c.slug === cat || c._id === cat || c.name === cat)
+            );
+            if (dbCat && (dbCat.minPrice !== null || dbCat.maxPrice !== null)) {
+              let match = true;
+              if (dbCat.minPrice !== null && dbCat.minPrice !== undefined) match = match && Number(p.price) >= dbCat.minPrice;
+              if (dbCat.maxPrice !== null && dbCat.maxPrice !== undefined) match = match && Number(p.price) <= dbCat.maxPrice;
+              return match;
+            }
+            return p.priceCategory === cat;
+          });
+        });
       }
 
       if (category && category !== 'all') {
@@ -127,7 +145,41 @@ const getProducts = async (req, res) => {
 
     if (priceCategory && priceCategory !== 'all') {
       const priceCats = priceCategory.split(',').map((p) => p.trim());
-      query.priceCategory = { $in: priceCats };
+      const priceConditions = [];
+
+      for (const cat of priceCats) {
+        if (cat === 'under_3m') {
+          priceConditions.push({ price: { $lt: 3000000 } });
+        } else if (cat === '3m_5m') {
+          priceConditions.push({ price: { $gte: 3000000, $lte: 5000000 } });
+        } else if (cat === '5m_10m') {
+          priceConditions.push({ price: { $gte: 5000000, $lte: 10000000 } });
+        } else if (cat === 'above_10m') {
+          priceConditions.push({ price: { $gt: 10000000 } });
+        } else {
+          let catDoc = null;
+          if (mongoose.Types.ObjectId.isValid(cat)) {
+            catDoc = await Category.findById(cat);
+          }
+          if (!catDoc) {
+            catDoc = await Category.findOne({ type: 'price', $or: [{ slug: cat }, { name: cat }] });
+          }
+          if (catDoc && (catDoc.minPrice !== null || catDoc.maxPrice !== null)) {
+            const cond = {};
+            if (catDoc.minPrice !== null && catDoc.minPrice !== undefined) cond.$gte = catDoc.minPrice;
+            if (catDoc.maxPrice !== null && catDoc.maxPrice !== undefined) cond.$lte = catDoc.maxPrice;
+            if (Object.keys(cond).length > 0) priceConditions.push({ price: cond });
+          } else {
+            priceConditions.push({ priceCategory: cat });
+          }
+        }
+      }
+
+      if (priceConditions.length === 1) {
+        Object.assign(query, priceConditions[0]);
+      } else if (priceConditions.length > 1) {
+        query.$or = query.$or ? [...query.$or, ...priceConditions] : priceConditions;
+      }
     }
 
     if (category && category !== 'all') {

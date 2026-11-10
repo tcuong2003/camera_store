@@ -85,8 +85,8 @@ export default function Navbar() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="fixed top-0 left-0 right-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200 text-slate-800 shadow-sm">
+      <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-3">
           {/* Logo & Store Title */}
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink min-w-0 group">

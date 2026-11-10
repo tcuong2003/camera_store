@@ -109,6 +109,7 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
 
   try {
     const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(30000),
     });
 
@@ -172,8 +173,8 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
 export const fetchProductBySlug = fetchProductByIdOrSlug;
 export const fetchProductById = fetchProductByIdOrSlug;
 
-// Fetch categories
-export const fetchCategories = async (type?: string, forceRefresh = false): Promise<Category[]> => {
+// Fetch categories (always fresh by default to prevent stale client sync)
+export const fetchCategories = async (type?: string, forceRefresh = true): Promise<Category[]> => {
   const cacheKey = `categories:${type || 'all'}`;
   if (!forceRefresh) {
     const cached = apiCache.get(cacheKey) as CacheEntry<Category[]> | undefined;
@@ -185,6 +186,7 @@ export const fetchCategories = async (type?: string, forceRefresh = false): Prom
   try {
     const query = type ? `?type=${type}` : '';
     const res = await fetch(`${API_BASE_URL}/categories${query}`, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(30000),
     });
 
@@ -273,11 +275,20 @@ export const adminGetStats = async (token: string) => {
   return await res.json();
 };
 
+export const notifyCategoriesUpdated = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mayanhtop1_categories_updated', Date.now().toString());
+    } catch {}
+  }
+};
+
 export const adminCreateCategory = async (
-  categoryData: { name: string; type: string; order?: number },
+  categoryData: { name: string; type: string; order?: number; minPrice?: number | null; maxPrice?: number | null },
   token: string
 ) => {
   clearApiCache();
+  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories`, {
     method: 'POST',
     headers: {
@@ -291,10 +302,11 @@ export const adminCreateCategory = async (
 
 export const adminUpdateCategory = async (
   id: string,
-  categoryData: { name?: string; type?: string; order?: number; isActive?: boolean },
+  categoryData: { name?: string; type?: string; order?: number; isActive?: boolean; minPrice?: number | null; maxPrice?: number | null },
   token: string
 ) => {
   clearApiCache();
+  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
     method: 'PUT',
     headers: {
@@ -308,6 +320,7 @@ export const adminUpdateCategory = async (
 
 export const adminDeleteCategory = async (id: string, token: string) => {
   clearApiCache();
+  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
     method: 'DELETE',
     headers: {

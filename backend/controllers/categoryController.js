@@ -15,36 +15,8 @@ const getCategories = async (req, res) => {
 
     if (!isDbConnected()) {
       let cats = [...memoryStore.getMemoryCategories()];
-      // Automatically merge categories used in products if not already in cats
-      const products = memoryStore.getMemoryProducts();
-      const existingSlugs = new Set(cats.map((c) => (c.slug || c.name || '').toLowerCase()));
-      for (const p of products) {
-        if (p.category && !existingSlugs.has(p.category.toLowerCase())) {
-          existingSlugs.add(p.category.toLowerCase());
-          const newCat = {
-            name: p.category,
-            slug: p.category,
-            type: 'category',
-            order: cats.length + 1,
-            isActive: true,
-          };
-          cats.push(newCat);
-          memoryStore.addMemoryCategory(newCat);
-        }
-        if (p.brand && !existingSlugs.has(p.brand.toLowerCase())) {
-          existingSlugs.add(p.brand.toLowerCase());
-          const newBrand = {
-            name: p.brand,
-            slug: slugify(p.brand, { lower: true, strict: true, locale: 'vi' }),
-            type: 'brand',
-            order: cats.length + 1,
-            isActive: true,
-          };
-          cats.push(newBrand);
-          memoryStore.addMemoryCategory(newBrand);
-        }
-      }
       if (type) cats = cats.filter((c) => c.type === type);
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       return res.status(200).json({ success: true, categories: cats });
     }
 
@@ -52,56 +24,27 @@ const getCategories = async (req, res) => {
     if (type) query.type = type;
 
     const categories = await Category.find(query).sort({ type: 1, order: 1 }).lean();
-    
-    // Also merge any categories and brands from products
-    try {
-      const productCategories = await Product.distinct('category');
-      const productBrands = await Product.distinct('brand');
-      const existingSlugs = new Set(categories.map((c) => (c.slug || c.name || '').toLowerCase()));
 
-      for (const catName of productCategories) {
-        if (catName && !existingSlugs.has(catName.toLowerCase())) {
-          existingSlugs.add(catName.toLowerCase());
-          categories.push({
-            name: catName,
-            slug: catName,
-            type: 'category',
-            order: 99,
-            isActive: true,
-          });
-        }
-      }
-
-      for (const brandName of productBrands) {
-        if (brandName && !existingSlugs.has(brandName.toLowerCase())) {
-          existingSlugs.add(brandName.toLowerCase());
-          categories.push({
-            name: brandName,
-            slug: slugify(brandName, { lower: true, strict: true, locale: 'vi' }),
-            type: 'brand',
-            order: 99,
-            isActive: true,
-          });
-        }
-      }
-    } catch (e) {
-      // Ignore distinct error if any
-    }
-
-    let result = categories;
-    if (type) result = result.filter((c) => c.type === type);
-
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res.status(200).json({
       success: true,
-      categories: result,
+      categories,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Lỗi khi tải danh mục: ' + error.message,
+      message: error.message,
     });
   }
+};
+
+const formatMillion = (num) => {
+  if (num === null || num === undefined) return '';
+  if (num >= 1000000) {
+    const m = num / 1000000;
+    return Number.isInteger(m) ? `${m} triệu` : `${m.toFixed(1)} triệu`;
+  }
+  return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
 };
 
 // @desc    Create new category
@@ -109,34 +52,62 @@ const getCategories = async (req, res) => {
 // @access  Private/Admin
 const createCategory = async (req, res) => {
   try {
-    const { name, type, order } = req.body;
-    if (!name || !type) {
+    const { name, type, order, minPrice, maxPrice } = req.body;
+    let finalName = (name || '').trim();
+    let min = null;
+    let max = null;
+
+    if (type === 'price') {
+      min = minPrice !== undefined && minPrice !== '' && minPrice !== null ? Number(minPrice) : null;
+      max = maxPrice !== undefined && maxPrice !== '' && maxPrice !== null ? Number(maxPrice) : null;
+      if (!finalName) {
+        if (min === null && max !== null) {
+          finalName = `Dưới ${formatMillion(max)}`;
+        } else if (min !== null && max !== null) {
+          finalName = `Từ ${formatMillion(min)} - ${formatMillion(max)}`;
+        } else if (min !== null && max === null) {
+          finalName = `Trên ${formatMillion(min)}`;
+        } else {
+          finalName = 'Tất cả khoảng giá';
+        }
+      }
+    }
+
+    if (!finalName || !type) {
       return res.status(400).json({
         success: false,
         message: 'Tên danh mục và loại là bắt buộc',
       });
     }
 
-    const slug = slugify(name, { lower: true, strict: true, locale: 'vi' });
+    let slug = slugify(finalName, { lower: true, strict: true, locale: 'vi' });
+    if (!slug) slug = `price-${min || 0}-${max || 'max'}`;
 
     if (!isDbConnected()) {
-      const newCat = { name, slug, type, order: order || 0, isActive: true };
+      const newCat = {
+        name: finalName,
+        slug,
+        type,
+        minPrice: min,
+        maxPrice: max,
+        order: order || 0,
+        isActive: true,
+      };
       memoryStore.addMemoryCategory(newCat);
       return res.status(201).json({ success: true, message: 'Tạo danh mục thành công', category: newCat });
     }
 
-    const existing = await Category.findOne({ slug });
+    let existing = await Category.findOne({ slug });
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Danh mục này đã tồn tại',
-      });
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
     }
 
     const category = new Category({
-      name,
+      name: finalName,
       slug,
       type,
+      minPrice: min,
+      maxPrice: max,
       order: order || 0,
     });
 
@@ -155,17 +126,23 @@ const createCategory = async (req, res) => {
   }
 };
 
+const escapeRegex = (str) => (str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '');
+
 // @desc    Update category
 // @route   PUT /api/categories/:id
 // @access  Private/Admin
 const updateCategory = async (req, res) => {
   try {
-    const { name, type, order, isActive } = req.body;
+    const { name, type, order, isActive, minPrice, maxPrice } = req.body;
+    let min = minPrice !== undefined && minPrice !== '' && minPrice !== null ? Number(minPrice) : null;
+    let max = maxPrice !== undefined && maxPrice !== '' && maxPrice !== null ? Number(maxPrice) : null;
 
     if (!isDbConnected()) {
       const updated = memoryStore.updateMemoryCategory(req.params.id, {
         ...(name ? { name, slug: slugify(name, { lower: true, strict: true, locale: 'vi' }) } : {}),
         ...(type ? { type } : {}),
+        ...(minPrice !== undefined ? { minPrice: min } : {}),
+        ...(maxPrice !== undefined ? { maxPrice: max } : {}),
         ...(order !== undefined ? { order } : {}),
         ...(isActive !== undefined ? { isActive } : {}),
       });
@@ -182,12 +159,17 @@ const updateCategory = async (req, res) => {
       });
     }
 
+    const oldName = category ? category.name : null;
+    const oldSlug = category ? category.slug : null;
+
     if (!category) {
       const slug = slugify(name || req.params.id, { lower: true, strict: true, locale: 'vi' });
       category = new Category({
         name: name || req.params.id,
         slug,
         type: type || 'category',
+        minPrice: min,
+        maxPrice: max,
         order: order || 0,
       });
     } else {
@@ -196,11 +178,30 @@ const updateCategory = async (req, res) => {
         category.slug = slugify(name, { lower: true, strict: true, locale: 'vi' });
       }
       if (type) category.type = type;
+      if (minPrice !== undefined) category.minPrice = min;
+      if (maxPrice !== undefined) category.maxPrice = max;
       if (order !== undefined) category.order = order;
       if (isActive !== undefined) category.isActive = isActive;
     }
 
     await category.save();
+
+    // Synchronize affected products if brand or category name was changed
+    if (name && oldName && name !== oldName) {
+      if (category.type === 'brand') {
+        const brandRegex = new RegExp(`^(${escapeRegex(oldName)}|${escapeRegex(oldSlug)})$`, 'i');
+        await Product.updateMany(
+          { brand: brandRegex },
+          { $set: { brand: name } }
+        );
+      } else if (category.type === 'category' || !category.type) {
+        const catRegex = new RegExp(`^(${escapeRegex(oldSlug)}|${escapeRegex(oldName)})$`, 'i');
+        await Product.updateMany(
+          { category: catRegex },
+          { $set: { category: category.slug } }
+        );
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -241,15 +242,18 @@ const deleteCategory = async (req, res) => {
       });
     }
 
+    // Unlink from products (set to empty string so products just lose the deleted brand/category without side-effects)
     if (category.type === 'brand') {
+      const brandRegex = new RegExp(`^(${escapeRegex(category.name)}|${escapeRegex(category.slug)})$`, 'i');
       await Product.updateMany(
-        { $or: [{ brand: category.name }, { brand: category.slug }] },
-        { $set: { brand: 'Khác' } }
+        { brand: brandRegex },
+        { $set: { brand: '' } }
       );
     } else if (category.type === 'category') {
+      const catRegex = new RegExp(`^(${escapeRegex(category.slug)}|${escapeRegex(category.name)})$`, 'i');
       await Product.updateMany(
-        { $or: [{ category: category.slug }, { category: category.name }] },
-        { $set: { category: 'may-anh-cu' } }
+        { category: catRegex },
+        { $set: { category: '' } }
       );
     }
 

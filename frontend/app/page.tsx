@@ -125,53 +125,70 @@ function CatalogContent() {
 
   const [categoriesData, setCategoriesData] = useState<Category[]>([]);
 
-  useEffect(() => {
-    fetchCategories()
+  const reloadCategories = React.useCallback(() => {
+    fetchCategories(undefined, true)
       .then((cats) => {
-        if (cats && cats.length > 0) setCategoriesData(cats);
+        if (Array.isArray(cats)) setCategoriesData(cats);
       })
       .catch(() => {});
   }, []);
 
-  const dynamicPriceOptions = React.useMemo(() => {
-    const list = [...PRICE_OPTIONS];
-    const seen = new Set(list.map((p) => p.value.toLowerCase()));
+  useEffect(() => {
+    reloadCategories();
 
-    categoriesData
-      .filter((c) => c.type === 'price')
-      .forEach((c) => {
+    // Cross-tab synchronization & auto-refresh on tab focus
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'mayanhtop1_categories_updated') {
+        reloadCategories();
+      }
+    };
+
+    const handleFocus = () => {
+      reloadCategories();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [reloadCategories]);
+
+  const dynamicPriceOptions = React.useMemo(() => {
+    const backendPrices = categoriesData.filter((c) => c.type === 'price');
+    if (backendPrices.length > 0) {
+      const list = [{ label: 'Tất cả khoảng giá', value: 'all' }];
+      const seen = new Set(['all']);
+      backendPrices.forEach((c) => {
         const val = c.slug || c.name;
-        if (!seen.has(val.toLowerCase()) && val.toLowerCase() !== 'all') {
+        if (!seen.has(val.toLowerCase())) {
           seen.add(val.toLowerCase());
           list.push({ label: c.name, value: val });
         }
       });
-
-    return list;
+      return list;
+    }
+    return [...PRICE_OPTIONS];
   }, [categoriesData]);
 
   const dynamicBrandOptions = React.useMemo(() => {
-    const list = [...BRAND_OPTIONS];
-    const seen = new Set(list.map((b) => b.value.toLowerCase()));
-
-    categoriesData
-      .filter((c) => c.type === 'brand')
-      .forEach((c) => {
-        if (!seen.has(c.name.toLowerCase())) {
-          seen.add(c.name.toLowerCase());
-          list.push({ label: c.name, value: c.name });
+    const backendBrands = categoriesData.filter((c) => c.type === 'brand');
+    if (backendBrands.length > 0) {
+      const list = [{ label: 'Tất cả hãng', value: 'all' }];
+      const seen = new Set(['all']);
+      backendBrands.forEach((b) => {
+        const val = b.name.trim();
+        if (val && !seen.has(val.toLowerCase())) {
+          seen.add(val.toLowerCase());
+          list.push({ label: val, value: val });
         }
       });
-
-    products.forEach((p) => {
-      if (p.brand && !seen.has(p.brand.toLowerCase())) {
-        seen.add(p.brand.toLowerCase());
-        list.push({ label: p.brand, value: p.brand });
-      }
-    });
-
-    return list;
-  }, [categoriesData, products]);
+      return list;
+    }
+    return [...BRAND_OPTIONS];
+  }, [categoriesData]);
 
   const dynamicCategoryOptions = React.useMemo(() => {
     const backendCategories = categoriesData.filter((c) => c.type === 'category');
@@ -225,12 +242,16 @@ function CatalogContent() {
       : filters.category === 'phu-kien'
       ? 'Phụ kiện máy ảnh'
       : filters.category);
-  const selectedPriceLabel = PRICE_OPTIONS.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
-  const selectedBrandLabel = BRAND_OPTIONS.find((o) => o.value === filters.brand)?.label || 'Thương hiệu';
+  const selectedPriceLabel =
+    dynamicPriceOptions.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
+  const selectedBrandLabel =
+    dynamicBrandOptions.find((o) => o.value.toLowerCase() === filters.brand.toLowerCase())?.label ||
+    filters.brand ||
+    'Thương hiệu';
   const selectedSortLabel = SORT_OPTIONS.find((o) => o.value === filters.sort)?.label || 'Sắp xếp';
 
   return (
-    <div ref={catalogTopRef} className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
+    <div ref={catalogTopRef} className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
       {/* Search keyword display indicator */}
       {searchKeyword && (
         <div className="flex items-center justify-between bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm text-slate-800">
@@ -393,19 +414,6 @@ function CatalogContent() {
                 </button>
               </span>
             )}
-            {filters.category !== 'all' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
-                <span>{filters.category}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, category: 'all' })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ lọc danh mục"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
             {filters.sort !== 'newest' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-xs">
                 <span>{selectedSortLabel}</span>
@@ -440,6 +448,7 @@ function CatalogContent() {
           initialSection={bottomSheetSection}
           brandOptions={dynamicBrandOptions}
           categoryOptions={dynamicCategoryOptions}
+          priceOptions={dynamicPriceOptions}
         />
 
         {/* Product Grid / Album View (4x4 = 16 items per page) */}
@@ -449,8 +458,8 @@ function CatalogContent() {
           onResetFilters={handleReset}
         />
 
-        {/* 3. Pagination Controls (4x4) */}
-        {!isLoading && totalPages > 1 && (
+        {/* 3. Pagination Controls */}
+        {!isLoading && products.length > 0 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

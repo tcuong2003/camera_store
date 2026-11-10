@@ -96,31 +96,55 @@ module.exports = {
   },
   updateMemoryCategory: (idOrSlug, updates) => {
     const idx = memoryCategories.findIndex(
-      (c) => c._id === idOrSlug || c.slug === idOrSlug || c.name === idOrSlug
+      (c) => c._id === idOrSlug || c.slug === idOrSlug || c.name.toLowerCase() === String(idOrSlug).toLowerCase()
     );
     if (idx !== -1) {
+      const oldName = memoryCategories[idx].name;
+      const oldSlug = memoryCategories[idx].slug;
       memoryCategories[idx] = { ...memoryCategories[idx], ...updates };
+
+      if (updates.name && updates.name !== oldName) {
+        if (memoryCategories[idx].type === 'brand') {
+          memoryProducts.forEach((p) => {
+            if (p.brand && (p.brand.toLowerCase() === oldName.toLowerCase() || p.brand.toLowerCase() === (oldSlug || '').toLowerCase())) {
+              p.brand = updates.name;
+            }
+          });
+        } else if (memoryCategories[idx].type === 'category') {
+          const newCatVal = updates.slug || updates.name.toLowerCase().replace(/\s+/g, '-');
+          memoryProducts.forEach((p) => {
+            if (p.category && (p.category.toLowerCase() === oldName.toLowerCase() || p.category.toLowerCase() === (oldSlug || '').toLowerCase())) {
+              p.category = newCatVal;
+            }
+          });
+        }
+      }
+
       return memoryCategories[idx];
     }
     return null;
   },
   deleteMemoryCategory: (idOrSlug) => {
     const target = memoryCategories.find(
-      (c) => c.slug === idOrSlug || c.name === idOrSlug || c._id === idOrSlug
+      (c) => c.slug === idOrSlug || c.name.toLowerCase() === String(idOrSlug).toLowerCase() || c._id === idOrSlug
     );
     if (target) {
       if (target.type === 'brand') {
         memoryProducts.forEach((p) => {
-          if (p.brand === target.name || p.brand === target.slug) p.brand = 'Khác';
+          if (p.brand && (p.brand.toLowerCase() === target.name.toLowerCase() || p.brand.toLowerCase() === (target.slug || '').toLowerCase())) {
+            p.brand = '';
+          }
         });
       } else if (target.type === 'category') {
         memoryProducts.forEach((p) => {
-          if (p.category === target.name || p.category === target.slug) p.category = 'may-anh-cu';
+          if (p.category && (p.category.toLowerCase() === target.name.toLowerCase() || p.category.toLowerCase() === (target.slug || '').toLowerCase())) {
+            p.category = '';
+          }
         });
       }
     }
     memoryCategories = memoryCategories.filter(
-      (c) => c.slug !== idOrSlug && c.name !== idOrSlug && c._id !== idOrSlug
+      (c) => c.slug !== idOrSlug && c.name.toLowerCase() !== String(idOrSlug).toLowerCase() && c._id !== idOrSlug
     );
   },
 };

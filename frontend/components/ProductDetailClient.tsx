@@ -82,7 +82,7 @@ export default function ProductDetailClient({
   // Loading Skeleton State
   if (isLoading) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 animate-pulse">
+      <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8 animate-pulse">
         {/* Breadcrumb Skeleton */}
         <div className="h-4 bg-slate-200 rounded w-48" />
 
@@ -118,7 +118,7 @@ export default function ProductDetailClient({
   // Not Found State
   if (!data || !data.product) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+      <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
         <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 max-w-lg mx-auto shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
             <CameraOff className="w-8 h-8" />
@@ -140,9 +140,12 @@ export default function ProductDetailClient({
   }
 
   const { product, related } = data;
+  const displayBrand = !product.brand || !product.brand.trim() || product.brand.toLowerCase() === 'other' || product.brand.toLowerCase() === 'khac'
+    ? 'Khác'
+    : product.brand;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8">
+    <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
         <Link href="/" className="hover:text-amber-600 flex items-center gap-1 transition-colors font-medium">
@@ -150,7 +153,7 @@ export default function ProductDetailClient({
           <span>Danh mục máy ảnh</span>
         </Link>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-        <span className="text-slate-600">{product.brand}</span>
+        <span className="text-slate-600">{displayBrand}</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
         <span className="text-slate-900 font-bold truncate max-w-[200px] sm:max-w-xs">
           {product.name}
@@ -170,7 +173,7 @@ export default function ProductDetailClient({
             {/* Badges: Brand & Category */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-700 text-xs font-bold uppercase tracking-wider">
-                {product.brand}
+                {displayBrand}
               </span>
               <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
                 {getCategoryLabel(product.category, product.deviceType)}

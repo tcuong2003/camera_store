@@ -18,6 +18,14 @@ const categorySchema = new mongoose.Schema(
       enum: ['price', 'brand', 'device_type', 'category'],
       required: true,
     },
+    minPrice: {
+      type: Number,
+      default: null,
+    },
+    maxPrice: {
+      type: Number,
+      default: null,
+    },
     order: {
       type: Number,
       default: 0,

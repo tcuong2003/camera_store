@@ -30,6 +30,7 @@ interface FilterBottomSheetProps {
   initialSection?: 'all' | 'price' | 'brand' | 'sort' | 'category';
   brandOptions?: { label: string; value: string }[];
   categoryOptions?: CategoryOption[];
+  priceOptions?: { label: string; value: string }[];
 }
 
 export default function FilterBottomSheet({
@@ -42,12 +43,14 @@ export default function FilterBottomSheet({
   initialSection = 'all',
   brandOptions,
   categoryOptions,
+  priceOptions,
 }: FilterBottomSheetProps) {
   const [tempFilters, setTempFilters] = useState<FilterState>(filters);
   const sheetContentRef = useRef<HTMLDivElement>(null);
 
   const activeBrands = brandOptions && brandOptions.length > 0 ? brandOptions : BRAND_OPTIONS;
   const activeCategories = categoryOptions && categoryOptions.length > 0 ? categoryOptions : CATEGORY_OPTIONS;
+  const activePrices = priceOptions && priceOptions.length > 0 ? priceOptions : PRICE_OPTIONS;
 
   // Sync tempFilters when opened
   useEffect(() => {
@@ -183,9 +186,9 @@ export default function FilterBottomSheet({
               {tempFilters.priceCategory === 'all' && <Check className="w-4 h-4 text-white" />}
             </button>
 
-            {/* 4 khoảng giá: lưới 2x2 đều nhau 100% về kích thước */}
+            {/* Các khoảng giá: lưới 2 cột đều nhau 100% */}
             <div className="grid grid-cols-2 gap-2">
-              {PRICE_OPTIONS.filter((opt) => opt.value !== 'all').map((opt) => {
+              {activePrices.filter((opt) => opt.value !== 'all').map((opt) => {
                 const active = tempFilters.priceCategory === opt.value;
                 return (
                   <button
