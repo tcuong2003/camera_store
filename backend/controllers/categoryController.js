@@ -241,6 +241,18 @@ const deleteCategory = async (req, res) => {
       });
     }
 
+    if (category.type === 'brand') {
+      await Product.updateMany(
+        { $or: [{ brand: category.name }, { brand: category.slug }] },
+        { $set: { brand: 'Khác' } }
+      );
+    } else if (category.type === 'category') {
+      await Product.updateMany(
+        { $or: [{ category: category.slug }, { category: category.name }] },
+        { $set: { category: 'may-anh-cu' } }
+      );
+    }
+
     await Category.findByIdAndDelete(category._id);
 
     return res.status(200).json({

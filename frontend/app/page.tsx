@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import FilterBar, {
+import type {
   FilterState,
+  CategoryOption,
+} from '../components/FilterBar';
+import {
   PRICE_OPTIONS,
   BRAND_OPTIONS,
   SORT_OPTIONS,
@@ -15,7 +18,7 @@ import FilterBottomSheet from '../components/FilterBottomSheet';
 import Pagination from '../components/Pagination';
 import { fetchProducts, fetchCategories } from '../lib/api';
 import { Product, Category, FALLBACK_PRODUCTS } from '../lib/mockData';
-import { Camera, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown } from 'lucide-react';
+import { Camera, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown, Layers } from 'lucide-react';
 
 function CatalogContent() {
   const router = useRouter();
@@ -37,7 +40,6 @@ function CatalogContent() {
     priceCategory: searchParams.get('priceCategory') || 'all',
     brand: searchParams.get('brand') || 'all',
     category: searchParams.get('category') || 'all',
-    deviceType: searchParams.get('deviceType') || 'all',
     sort: searchParams.get('sort') || 'newest',
   });
 
@@ -54,7 +56,6 @@ function CatalogContent() {
           priceCategory: filters.priceCategory,
           brand: filters.brand,
           category: filters.category,
-          deviceType: filters.deviceType,
           sort: filters.sort,
           page: currentPage,
           limit: 25, // 5x5
@@ -68,15 +69,9 @@ function CatalogContent() {
       } catch (err) {
         console.error('Failed to load products:', err);
         if (isMounted) {
-          const sortedFallback = [...FALLBACK_PRODUCTS].sort((a, b) => {
-            const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
-            const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
-            if (orderA !== orderB) return orderA - orderB;
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          });
-          setProducts(sortedFallback.slice(0, 25));
-          setTotalCount(FALLBACK_PRODUCTS.length);
-          setTotalPages(Math.ceil(FALLBACK_PRODUCTS.length / 25));
+          setProducts([]);
+          setTotalCount(0);
+          setTotalPages(1);
         }
       } finally {
         if (isMounted) {
@@ -98,7 +93,6 @@ function CatalogContent() {
     if (newFilters.priceCategory !== 'all') params.set('priceCategory', newFilters.priceCategory);
     if (newFilters.brand !== 'all') params.set('brand', newFilters.brand);
     if (newFilters.category !== 'all') params.set('category', newFilters.category);
-    if (newFilters.deviceType !== 'all') params.set('deviceType', newFilters.deviceType);
     if (newFilters.sort !== 'newest') params.set('sort', newFilters.sort);
     if (pageNum > 1) params.set('page', pageNum.toString());
 
@@ -125,7 +119,6 @@ function CatalogContent() {
       priceCategory: 'all',
       brand: 'all',
       category: 'all',
-      deviceType: 'all',
       sort: 'newest',
     });
   };
@@ -139,6 +132,23 @@ function CatalogContent() {
       })
       .catch(() => {});
   }, []);
+
+  const dynamicPriceOptions = React.useMemo(() => {
+    const list = [...PRICE_OPTIONS];
+    const seen = new Set(list.map((p) => p.value.toLowerCase()));
+
+    categoriesData
+      .filter((c) => c.type === 'price')
+      .forEach((c) => {
+        const val = c.slug || c.name;
+        if (!seen.has(val.toLowerCase()) && val.toLowerCase() !== 'all') {
+          seen.add(val.toLowerCase());
+          list.push({ label: c.name, value: val });
+        }
+      });
+
+    return list;
+  }, [categoriesData]);
 
   const dynamicBrandOptions = React.useMemo(() => {
     const list = [...BRAND_OPTIONS];
@@ -164,24 +174,25 @@ function CatalogContent() {
   }, [categoriesData, products]);
 
   const dynamicCategoryOptions = React.useMemo(() => {
-    const list = [...CATEGORY_OPTIONS];
-    const seen = new Set(list.map((c) => c.value.toLowerCase()));
-
-    categoriesData
-      .filter((c) => c.type === 'category' || c.type === 'device_type' || !c.type)
-      .forEach((c) => {
+    const backendCategories = categoriesData.filter((c) => c.type === 'category');
+    if (backendCategories.length > 0) {
+      const list: CategoryOption[] = [{ label: 'Tất cả danh mục', value: 'all', type: 'all' }];
+      const seen = new Set(['all']);
+      backendCategories.forEach((c) => {
         const val = c.slug || c.name;
-        if (!seen.has(val.toLowerCase()) && val.toLowerCase() !== 'all') {
+        if (!seen.has(val.toLowerCase())) {
           seen.add(val.toLowerCase());
           list.push({
             label: c.name,
             value: val,
-            type: c.type === 'device_type' ? 'deviceType' : 'category',
+            type: 'category',
           });
         }
       });
+      return list;
+    }
 
-    return list;
+    return [...CATEGORY_OPTIONS];
   }, [categoriesData]);
 
   const availableCategories = React.useMemo(() => {
@@ -200,25 +211,26 @@ function CatalogContent() {
   const activeFilterCount =
     (filters.priceCategory !== 'all' ? 1 : 0) +
     (filters.brand !== 'all' ? 1 : 0) +
-    (filters.category !== 'all' || filters.deviceType !== 'all' ? 1 : 0) +
+    (filters.category !== 'all' ? 1 : 0) +
     (filters.sort !== 'newest' ? 1 : 0);
 
+  const selectedCategoryLabel =
+    dynamicCategoryOptions.find((o) => o.value.toLowerCase() === filters.category.toLowerCase())?.label ||
+    (filters.category === 'may-anh-cu'
+      ? 'Máy ảnh cũ'
+      : filters.category === 'may-anh-chinh-hang'
+      ? 'Máy ảnh chính hãng'
+      : filters.category === 'ong-kinh'
+      ? 'Ống kính (Lens)'
+      : filters.category === 'phu-kien'
+      ? 'Phụ kiện máy ảnh'
+      : filters.category);
   const selectedPriceLabel = PRICE_OPTIONS.find((o) => o.value === filters.priceCategory)?.label || 'Khoảng giá';
   const selectedBrandLabel = BRAND_OPTIONS.find((o) => o.value === filters.brand)?.label || 'Thương hiệu';
   const selectedSortLabel = SORT_OPTIONS.find((o) => o.value === filters.sort)?.label || 'Sắp xếp';
 
   return (
     <div ref={catalogTopRef} className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
-      {/* 1. Filter Section (Danh mục sản phẩm) */}
-      <section className="w-full">
-        <FilterBar
-          filters={filters}
-          onChange={handleFilterChange}
-          totalCount={totalCount}
-          availableCategories={availableCategories}
-        />
-      </section>
-
       {/* Search keyword display indicator */}
       {searchKeyword && (
         <div className="flex items-center justify-between bg-amber-50 border border-amber-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm text-slate-800">
@@ -237,12 +249,12 @@ function CatalogContent() {
         </div>
       )}
 
-      {/* 2. Product Grid Section with 2 Sub-filters (Khoảng giá & Thương hiệu) */}
+      {/* 2. Product Grid Section with 3 Sub-filters (Danh mục, Khoảng giá & Thương hiệu) */}
       <section className="space-y-4 w-full">
         {/* Header Bar:
             - Left: Title & Count
             - Mobile (< md): Single "Bộ lọc (+count)" button triggering Bottom Sheet
-            - Tablet & Desktop (>= md): 3 CustomDropdowns (Khoảng giá, Thương hiệu, Sắp xếp)
+            - Tablet & Desktop (>= md): 4 CustomDropdowns (Danh mục, Khoảng giá, Thương hiệu, Sắp xếp)
         */}
         <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
           {/* Top/Left: Title & Total Count (and Mobile-only Filter Button on < md) */}
@@ -281,7 +293,7 @@ function CatalogContent() {
             </div>
           </div>
 
-          {/* Tablet & Desktop Custom Dropdowns (>= md): Khoảng giá, Thương hiệu, Sắp xếp */}
+          {/* Tablet & Desktop Custom Dropdowns (>= md): Danh mục, Khoảng giá, Thương hiệu, Sắp xếp */}
           <div className="hidden md:flex flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto min-w-0">
             {activeFilterCount > 0 && (
               <button
@@ -295,9 +307,19 @@ function CatalogContent() {
               </button>
             )}
 
-            {/* Bộ lọc 1: Khoảng giá */}
+            {/* Bộ lọc 1: Danh mục sản phẩm (nằm bên trái filter dropdown tất cả khoảng giá) */}
             <CustomDropdown
-              options={PRICE_OPTIONS}
+              options={dynamicCategoryOptions}
+              value={filters.category}
+              onChange={(val) => handleFilterChange({ ...filters, category: val })}
+              icon={<Layers className="w-4 h-4 text-amber-600" />}
+              placeholder="Tất cả danh mục"
+              className="flex-1 lg:flex-initial min-w-[130px]"
+            />
+
+            {/* Bộ lọc 2: Khoảng giá */}
+            <CustomDropdown
+              options={dynamicPriceOptions}
               value={filters.priceCategory}
               onChange={(val) => handleFilterChange({ ...filters, priceCategory: val })}
               icon={<DollarSign className="w-4 h-4 text-amber-600" />}
@@ -305,7 +327,7 @@ function CatalogContent() {
               className="flex-1 lg:flex-initial min-w-[130px]"
             />
 
-            {/* Bộ lọc 2: Thương hiệu */}
+            {/* Bộ lọc 3: Thương hiệu */}
             <CustomDropdown
               options={dynamicBrandOptions}
               value={filters.brand}
@@ -332,6 +354,19 @@ function CatalogContent() {
         {activeFilterCount > 0 && (
           <div className="flex items-center gap-2 flex-wrap text-xs px-1">
             <span className="text-slate-500 font-medium">Đang lọc:</span>
+            {filters.category !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
+                <span>{selectedCategoryLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange({ ...filters, category: 'all' })}
+                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
+                  title="Bỏ lọc danh mục"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
             {filters.priceCategory !== 'all' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
                 <span>{selectedPriceLabel}</span>
@@ -366,19 +401,6 @@ function CatalogContent() {
                   onClick={() => handleFilterChange({ ...filters, category: 'all' })}
                   className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
                   title="Bỏ lọc danh mục"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {filters.deviceType !== 'all' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs">
-                <span>{filters.deviceType}</span>
-                <button
-                  type="button"
-                  onClick={() => handleFilterChange({ ...filters, deviceType: 'all' })}
-                  className="hover:text-red-600 cursor-pointer text-slate-400 hover:scale-110 font-bold"
-                  title="Bỏ lọc dòng máy"
                 >
                   ✕
                 </button>

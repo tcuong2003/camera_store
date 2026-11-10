@@ -120,62 +120,14 @@ export const fetchProducts = async (params: FilterParams = {}, forceRefresh = fa
     apiCache.set(cacheKey, { data, timestamp: Date.now() });
     return data;
   } catch (error) {
-    console.warn('Backend API unavailable, using resilient fallback data:', error);
-    // Filter mock data locally
-    let filtered = [...FALLBACK_PRODUCTS];
-
-    if (params.search) {
-      const s = params.search.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(s) ||
-          p.brand.toLowerCase().includes(s) ||
-          (p.condition && p.condition.toLowerCase().includes(s))
-      );
-    }
-
-    if (params.brand && params.brand !== 'all') {
-      const brands = params.brand.toLowerCase().split(',');
-      filtered = filtered.filter((p) => brands.includes(p.brand.toLowerCase()));
-    }
-
-    if (params.priceCategory && params.priceCategory !== 'all') {
-      const cats = params.priceCategory.split(',');
-      filtered = filtered.filter((p) => cats.includes(p.priceCategory));
-    }
-
-    if (params.category && params.category !== 'all') {
-      const cats = params.category.split(',').map((c) => c.toLowerCase());
-      filtered = filtered.filter(
-        (p) =>
-          cats.includes(p.category?.toLowerCase()) ||
-          (p.deviceType && cats.includes(p.deviceType.toLowerCase()))
-      );
-    }
-
-    if (params.deviceType && params.deviceType !== 'all') {
-      filtered = filtered.filter((p) => p.deviceType?.toLowerCase() === params.deviceType?.toLowerCase());
-    }
-
-    if (params.sort === 'price_asc') {
-      filtered.sort((a, b) => a.price - b.price);
-    } else if (params.sort === 'price_desc') {
-      filtered.sort((a, b) => b.price - a.price);
-    }
-
-    const pageNum = params.page || 1;
-    const limitNum = params.limit || 25;
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / limitNum) || 1;
-    const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
-
+    console.warn('Backend API request error:', error);
     return {
-      success: true,
-      count: paginated.length,
-      total,
-      totalPages,
-      currentPage: pageNum,
-      products: paginated,
+      success: false,
+      count: 0,
+      total: 0,
+      totalPages: 1,
+      currentPage: 1,
+      products: [],
     };
   }
 };
@@ -214,19 +166,6 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
     }
   }
 
-  const match = FALLBACK_PRODUCTS.find((p) => p.slug === idOrSlug || p._id === idOrSlug);
-  if (match) {
-    const related = FALLBACK_PRODUCTS.filter(
-      (p) => (p.slug !== idOrSlug && p._id !== idOrSlug) && (p.brand === match.brand || p.priceCategory === match.priceCategory)
-    ).slice(0, 4);
-
-    return {
-      success: true,
-      product: match,
-      related,
-    };
-  }
-
   return null;
 };
 
@@ -256,13 +195,10 @@ export const fetchCategories = async (type?: string, forceRefresh = false): Prom
       return cats;
     }
   } catch (error) {
-    console.warn('Failed to fetch categories from API, using fallback:', error);
+    console.warn('Failed to fetch categories from API:', error);
   }
 
-  if (type) {
-    return FALLBACK_CATEGORIES.filter((c) => c.type === type);
-  }
-  return FALLBACK_CATEGORIES;
+  return [];
 };
 
 // Admin API calls

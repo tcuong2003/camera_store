@@ -77,7 +77,7 @@ export default function FilterBottomSheet({
   const activeFilterCount =
     (tempFilters.priceCategory !== 'all' ? 1 : 0) +
     (tempFilters.brand !== 'all' ? 1 : 0) +
-    (tempFilters.category !== 'all' || tempFilters.deviceType !== 'all' ? 1 : 0) +
+    (tempFilters.category !== 'all' ? 1 : 0) +
     (tempFilters.sort !== 'newest' ? 1 : 0);
 
   const handleReset = () => {
@@ -85,7 +85,6 @@ export default function FilterBottomSheet({
       priceCategory: 'all',
       brand: 'all',
       category: 'all',
-      deviceType: 'all',
       sort: 'newest',
     });
   };
@@ -97,19 +96,15 @@ export default function FilterBottomSheet({
 
   const handleCategorySelect = (opt: CategoryOption) => {
     if (opt.value === 'all') {
-      setTempFilters((prev) => ({ ...prev, category: 'all', deviceType: 'all' }));
-    } else if (opt.type === 'category') {
-      setTempFilters((prev) => ({ ...prev, category: opt.value, deviceType: 'all' }));
-    } else if (opt.type === 'deviceType') {
-      setTempFilters((prev) => ({ ...prev, category: 'all', deviceType: opt.value }));
+      setTempFilters((prev) => ({ ...prev, category: 'all' }));
+    } else {
+      setTempFilters((prev) => ({ ...prev, category: opt.value }));
     }
   };
 
   const isCatActive = (opt: CategoryOption) => {
-    if (opt.value === 'all') return tempFilters.category === 'all' && tempFilters.deviceType === 'all';
-    if (opt.type === 'category') return tempFilters.category?.toLowerCase() === opt.value.toLowerCase();
-    if (opt.type === 'deviceType') return tempFilters.deviceType?.toLowerCase() === opt.value.toLowerCase();
-    return false;
+    if (opt.value === 'all') return tempFilters.category === 'all';
+    return tempFilters.category?.toLowerCase() === opt.value.toLowerCase();
   };
 
   if (!isOpen) return null;
@@ -254,12 +249,12 @@ export default function FilterBottomSheet({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-amber-500" />
-                <span>Danh mục &amp; Dòng máy</span>
+                <span>Danh mục sản phẩm</span>
               </label>
-              {(tempFilters.category !== 'all' || tempFilters.deviceType !== 'all') && (
+              {tempFilters.category !== 'all' && (
                 <button
                   type="button"
-                  onClick={() => setTempFilters((p) => ({ ...p, category: 'all', deviceType: 'all' }))}
+                  onClick={() => setTempFilters((p) => ({ ...p, category: 'all' }))}
                   className="text-[11px] text-amber-600 font-semibold hover:underline cursor-pointer"
                 >
                   Mặc định

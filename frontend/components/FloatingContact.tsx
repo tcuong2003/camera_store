@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronUp } from 'lucide-react';
 
 export default function FloatingContact() {
+  const pathname = usePathname();
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -18,6 +20,15 @@ export default function FloatingContact() {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Strictly hide on Admin portal
+  const isAdmin =
+    (pathname && pathname.startsWith('/admin')) ||
+    (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'));
+
+  if (isAdmin) {
+    return null;
+  }
 
   if (!showScrollTop) {
     return null;

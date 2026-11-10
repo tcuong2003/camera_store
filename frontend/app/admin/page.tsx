@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   Camera,
@@ -42,8 +43,9 @@ import {
   fetchProducts,
   fetchCategories,
   formatVND,
+  clearApiCache,
 } from '../../lib/api';
-import { Product, Category, FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '../../lib/mockData';
+import { Product, Category } from '../../lib/mockData';
 import CustomDropdown, { DropdownOption } from '../../components/CustomDropdown';
 import RichTextEditor from '../../components/RichTextEditor';
 
@@ -134,6 +136,12 @@ const compressAndNormalizeImage = async (file: File): Promise<File> => {
 };
 
 export default function AdminPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Auth state
   const [token, setToken] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<string>('admin');
@@ -143,8 +151,8 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Tab navigation
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  // Tab navigation: separate top-level tabs (products, brand, category, price)
+  const [activeTab, setActiveTab] = useState<'products' | 'brand' | 'category' | 'price'>('products');
 
   // Product management state
   const [products, setProducts] = useState<Product[]>([]);
@@ -176,7 +184,6 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'sold'>('all');
   const [adminPage, setAdminPage] = useState(1);
   const pageSize = 15;
 
@@ -200,7 +207,6 @@ export default function AdminPage() {
 
   // Fallback / preserved internal fields
   const [condition, setCondition] = useState('Ngoại hình đẹp - Hoạt động hoàn hảo');
-  const [deviceType, setDeviceType] = useState('Mirrorless');
   const [accessories, setAccessories] = useState('Đầy đủ pin, sạc, dây đeo sẵn dùng');
   const [warranty, setWarranty] = useState('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
 
@@ -214,39 +220,62 @@ export default function AdminPage() {
   // Category management state
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatType, setNewCatType] = useState<'category' | 'brand' | 'price' | 'device_type'>('category');
+  const [newCatType, setNewCatType] = useState<'category' | 'brand' | 'price'>('category');
   const [categoryFilterType, setCategoryFilterType] = useState<string>('all');
 
   // Category Edit state
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCatName, setEditCatName] = useState('');
-  const [editCatType, setEditCatType] = useState<'category' | 'brand' | 'price' | 'device_type'>('category');
+  const [editCatType, setEditCatType] = useState<'category' | 'brand' | 'price'>('category');
   const [isEditCatModalOpen, setIsEditCatModalOpen] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
 
-  // Custom confirmation dialog state for product deletion
-  const [deleteDialog, setDeleteDialog] = useState<{
+  // Unified custom confirmation dialog state (replaces browser confirm() and product deleteDialog)
+  const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
-    productId: string;
-    productName: string;
-    isDeleting: boolean;
+    title: string;
+    description: string;
+    highlightName: string;
+    note?: string;
+    confirmLabel?: string;
+    itemType: 'product' | 'category';
+    productId?: string;
+    category?: Category;
+    categoryIndex?: number;
+    isProcessing: boolean;
   }>({
     isOpen: false,
-    productId: '',
-    productName: '',
-    isDeleting: false,
+    title: '',
+    description: '',
+    highlightName: '',
+    itemType: 'product',
+    isProcessing: false,
   });
 
-  // Lock background body scroll when modal or confirm dialog is open
+  // Clean & robust background scroll lock (prevents window scrolling without layout jump or viewport shift)
   useEffect(() => {
-    if (isModalOpen || deleteDialog.isOpen || isEditCatModalOpen) {
+    const isAnyModalOpen = isModalOpen || confirmDialog.isOpen || isEditCatModalOpen;
+    if (isAnyModalOpen) {
       const originalOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalBodyPaddingRight = document.body.style.paddingRight;
+
+      // Prevent content shift when scrollbar is removed
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      if (scrollBarWidth > 0) {
+        document.body.style.paddingRight = `${scrollBarWidth}px`;
+      }
+
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
+
       return () => {
+        document.documentElement.style.overflow = originalHtmlOverflow;
         document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalBodyPaddingRight;
       };
     }
-  }, [isModalOpen, deleteDialog.isOpen]);
+  }, [isModalOpen, confirmDialog.isOpen, isEditCatModalOpen]);
 
   // Load token from localStorage
   useEffect(() => {
@@ -269,25 +298,26 @@ export default function AdminPage() {
       ])
         .then(([prodResult, catResult]) => {
           if (!isSubscribed) return;
-          if (prodResult.status === 'fulfilled') {
-            const list = prodResult.value.products || FALLBACK_PRODUCTS;
+          if (prodResult.status === 'fulfilled' && prodResult.value?.products) {
+            const list = prodResult.value.products;
             const sorted = [...list].sort((a, b) => {
               const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
               const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
               if (orderA !== orderB) return orderA - orderB;
               return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
             });
-            setProducts(sorted);
+            const normalized = sorted.map((p, idx) => ({ ...p, order: idx + 1 }));
+            setProducts(normalized);
           } else {
-            console.error('Failed to fetch admin products:', prodResult.reason);
-            setProducts(FALLBACK_PRODUCTS);
+            console.error('Failed to fetch admin products:', prodResult.status === 'rejected' ? prodResult.reason : 'No products');
+            setProducts([]);
           }
 
-          if (catResult.status === 'fulfilled') {
-            setCategories(catResult.value || FALLBACK_CATEGORIES);
+          if (catResult.status === 'fulfilled' && catResult.value) {
+            setCategories(catResult.value);
           } else {
-            console.error('Failed to fetch admin categories:', catResult.reason);
-            setCategories(FALLBACK_CATEGORIES);
+            console.error('Failed to fetch admin categories:', catResult.status === 'rejected' ? catResult.reason : 'No categories');
+            setCategories([]);
           }
         })
         .finally(() => {
@@ -391,10 +421,11 @@ export default function AdminPage() {
     setCategory('may-anh-cu');
     setDescription('');
     setCondition('Ngoại hình đẹp - Hoạt động hoàn hảo');
-    setDeviceType('Mirrorless');
     setAccessories('Đầy đủ pin, sạc, dây đeo sẵn dùng');
     setWarranty('Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1');
     setImages([]);
+    setUploadingImages(false);
+    setUploadProgress(0);
     setIsAvailable(true);
     setFeatured(false);
     setDisplayOrder(1);
@@ -414,10 +445,11 @@ export default function AdminPage() {
     setCategory(p.category);
     setDescription(p.description || '');
     setCondition(p.condition || 'Ngoại hình đẹp - Hoạt động hoàn hảo');
-    setDeviceType(p.deviceType || 'Mirrorless');
     setAccessories(p.accessories || '');
     setWarranty(p.warranty || '');
     setImages((p.images || []).map((u) => sanitizeImageUrl(u)));
+    setUploadingImages(false);
+    setUploadProgress(0);
     setIsAvailable(p.isAvailable);
     setFeatured(p.featured || false);
     const pos = p.order || (products.findIndex((item) => item._id === p._id) + 1);
@@ -459,14 +491,18 @@ export default function AdminPage() {
   };
 
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      await processFiles(Array.from(e.target.files));
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    // Immediately blur and reset value so the browser does not scroll or retain focus on hidden input
+    e.target.blur();
+    e.target.value = '';
+    if (files.length > 0) {
+      await processFiles(files);
     }
   };
 
   const processFiles = async (files: File[]) => {
     if (images.length + files.length > 15) {
-      alert('Tối đa 15 ảnh cho mỗi sản phẩm.');
+      showToast('Tối đa 15 ảnh cho mỗi sản phẩm.', 'error');
       return;
     }
 
@@ -488,17 +524,17 @@ export default function AdminPage() {
         setImages((prev) => [...prev, ...cleanUrls]);
         showToast(`Đã tải lên ${cleanUrls.length} ảnh lên hệ thống thành công!`, 'success');
       } else {
-        alert(res.message || 'Lỗi tải ảnh lên máy chủ. Vui lòng kiểm tra lại cấu hình Cloudinary / API.');
+        showToast(res.message || 'Lỗi tải ảnh lên máy chủ. Vui lòng kiểm tra lại cấu hình Cloudinary / API.', 'error');
       }
       setUploadProgress(100);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
-      alert(`Không thể tải ảnh lên máy chủ: ${errorMsg}`);
+      showToast(`Không thể tải ảnh lên máy chủ: ${errorMsg}`, 'error');
     } finally {
       setTimeout(() => {
         setUploadingImages(false);
         setUploadProgress(0);
-      }, 400);
+      }, 300);
     }
   };
 
@@ -554,27 +590,21 @@ export default function AdminPage() {
   const handleSubmitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || price === '') {
-      alert('Vui lòng nhập đầy đủ tên máy và giá bán');
+      showToast('Vui lòng nhập đầy đủ tên máy và giá bán', 'error');
       return;
     }
 
     if (images.length === 0) {
-      alert('Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm');
+      showToast('Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm', 'error');
       return;
     }
 
     if (images.some((img) => img.startsWith('blob:'))) {
-      alert('Phát hiện ảnh tạm (blob:). Ảnh này chưa được tải lên máy chủ Cloudinary nên sẽ không hiển thị được trên điện thoại hoặc máy khác. Vui lòng xóa và tải lại ảnh!');
+      showToast('Phát hiện ảnh tạm (blob:). Vui lòng xóa và tải lại ảnh!', 'error');
       return;
     }
 
     const autoPriceCategory = calcPriceCat(Number(price));
-    const autoDeviceType =
-      category === 'ong-kinh'
-        ? 'Lens'
-        : category === 'phu-kien'
-        ? 'Accessory'
-        : deviceType || 'Mirrorless';
 
     const payload: Partial<Product> = {
       name,
@@ -584,7 +614,6 @@ export default function AdminPage() {
       brand,
       priceCategory: autoPriceCategory,
       category,
-      deviceType: autoDeviceType,
       accessories: accessories || 'Đầy đủ phụ kiện theo máy',
       warranty: warranty || 'Bảo hành 06 tháng phần cứng - Bao test 07 ngày lỗi 1 đổi 1',
       description,
@@ -598,15 +627,20 @@ export default function AdminPage() {
       if (modalMode === 'create') {
         const res = await adminCreateProduct(payload, token || '');
         if (res.success && res.product) {
-          const newList = [res.product, ...products];
-          newList.sort((a, b) => {
-            const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
-            const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
-            if (orderA !== orderB) return orderA - orderB;
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          });
-          setProducts(newList);
-          showToast(`Đã thêm mới máy ảnh "${res.product.name}" thành công!`, 'success');
+          const targetPos = displayOrder !== '' ? Number(displayOrder) : 1;
+          const newProductsList = [...products];
+          const insertIdx = Math.max(0, Math.min(targetPos - 1, newProductsList.length));
+          newProductsList.splice(insertIdx, 0, res.product);
+          const normalized = newProductsList.map((p, idx) => ({ ...p, order: idx + 1 }));
+          setProducts(normalized);
+          showToast(`Đã thêm mới máy ảnh "${res.product.name}" vào vị trí #${targetPos}!`, 'success');
+
+          // Ensure database permanently has strictly sequential 1..N order
+          if (token) {
+            const orderedIds = normalized.map((p) => p._id);
+            adminReorderProduct({ orderedIds }, token).catch(console.error);
+          }
+          clearApiCache();
         } else {
           showToast('Không thể lưu sản phẩm lên máy chủ: ' + (res.message || 'Lỗi không xác định'), 'error');
           return;
@@ -614,15 +648,20 @@ export default function AdminPage() {
       } else if (modalMode === 'edit' && editingProduct) {
         const res = await adminUpdateProduct(editingProduct._id, payload, token || '');
         if (res.success && res.product) {
-          const newList = products.map((p) => (p._id === editingProduct._id ? res.product : p));
-          newList.sort((a, b) => {
-            const orderA = a.order !== undefined && a.order !== null ? a.order : 999999;
-            const orderB = b.order !== undefined && b.order !== null ? b.order : 999999;
-            if (orderA !== orderB) return orderA - orderB;
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          });
-          setProducts(newList);
+          const targetPos = displayOrder !== '' ? Number(displayOrder) : 1;
+          const withoutEdited = products.filter((p) => p._id !== editingProduct._id);
+          const targetIndex = Math.max(0, Math.min(targetPos - 1, withoutEdited.length));
+          withoutEdited.splice(targetIndex, 0, res.product);
+          const normalized = withoutEdited.map((p, idx) => ({ ...p, order: idx + 1 }));
+          setProducts(normalized);
           showToast(`Đã lưu cập nhật cho máy ảnh "${res.product.name}"!`, 'success');
+
+          // Ensure database permanently has strictly sequential 1..N order
+          if (token) {
+            const orderedIds = normalized.map((p) => p._id);
+            adminReorderProduct({ orderedIds }, token).catch(console.error);
+          }
+          clearApiCache();
         } else {
           showToast('Không thể cập nhật sản phẩm: ' + (res.message || 'Lỗi không xác định'), 'error');
           return;
@@ -634,39 +673,137 @@ export default function AdminPage() {
     }
   };
 
-  // Trigger open custom delete confirmation dialog
+  // Trigger open custom delete confirmation dialog for product
   const promptDeleteProduct = (id: string, name: string) => {
-    setDeleteDialog({
+    setConfirmDialog({
       isOpen: true,
+      title: 'Xác Nhận Xóa Sản Phẩm?',
+      description: 'Bạn có chắc chắn muốn xóa máy ảnh này khỏi kho hàng không?',
+      highlightName: name,
+      note: 'Thao tác này sẽ gỡ máy vĩnh viễn khỏi danh mục hiển thị.',
+      confirmLabel: 'Xác nhận xóa',
+      itemType: 'product',
       productId: id,
-      productName: name,
-      isDeleting: false,
+      isProcessing: false,
     });
   };
 
-  // Execute delete after user confirms in dialog
-  const handleConfirmDelete = async () => {
-    if (!deleteDialog.productId) return;
-    const deletedName = deleteDialog.productName;
-    setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
+  // Trigger open custom delete confirmation dialog for category/brand/label
+  const promptDeleteCategory = (cat: Category, index: number) => {
+    const isBrand = cat.type === 'brand';
+    const isCat = cat.type === 'category' || !cat.type;
 
-    try {
-      await adminDeleteProduct(deleteDialog.productId, token || '');
-      setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
-      setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
-      showToast(`Đã xóa thành công "${deletedName}" khỏi kho hàng!`, 'success');
-    } catch (err) {
-      console.error(err);
-      // Fallback local remove
-      setProducts((prev) => prev.filter((p) => p._id !== deleteDialog.productId));
-      setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
-      showToast(`Đã xóa thành công "${deletedName}" khỏi kho hàng!`, 'success');
+    let attachedCount = 0;
+    if (isBrand) {
+      attachedCount = products.filter(
+        (p) =>
+          (p.brand && p.brand.toLowerCase() === cat.name.toLowerCase()) ||
+          (cat.slug && p.brand && p.brand.toLowerCase() === cat.slug.toLowerCase())
+      ).length;
+    } else if (isCat) {
+      attachedCount = products.filter(
+        (p) =>
+          (p.category && p.category.toLowerCase() === (cat.slug || cat.name).toLowerCase()) ||
+          (p.category && p.category.toLowerCase() === cat.name.toLowerCase())
+      ).length;
     }
+
+    let noteText = 'Nhãn này sẽ được gỡ hoàn toàn khỏi hệ thống bộ lọc.';
+    if (attachedCount > 0) {
+      if (isBrand) {
+        noteText = `⚠️ Đang có ${attachedCount} máy ảnh thuộc hãng này. Khi xóa nhãn, các máy ảnh này sẽ được chuyển an toàn sang hãng 'Khác' để giữ trọn vẹn thông tin và ảnh máy.`;
+      } else if (isCat) {
+        noteText = `⚠️ Đang có ${attachedCount} máy ảnh thuộc danh mục này. Khi xóa nhãn, các máy ảnh này sẽ được chuyển an toàn sang 'Máy ảnh cũ' để giữ trọn vẹn thông tin và ảnh máy.`;
+      }
+    }
+
+    setConfirmDialog({
+      isOpen: true,
+      title: isBrand ? 'Xác Nhận Xóa Thương Hiệu?' : 'Xác Nhận Xóa Nhãn Danh Mục?',
+      description: `Bạn có chắc chắn muốn xóa "${cat.name}" khỏi hệ thống?`,
+      highlightName: cat.name,
+      note: noteText,
+      confirmLabel: 'Xác nhận xóa',
+      itemType: 'category',
+      category: cat,
+      categoryIndex: index,
+      isProcessing: false,
+    });
   };
 
-  const handleCancelDelete = () => {
-    if (deleteDialog.isDeleting) return;
-    setDeleteDialog({ isOpen: false, productId: '', productName: '', isDeleting: false });
+  const handleCancelConfirm = () => {
+    if (confirmDialog.isProcessing) return;
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // Execute confirm action (product or category delete)
+  const handleExecuteConfirm = async () => {
+    if (confirmDialog.isProcessing) return;
+    setConfirmDialog((prev) => ({ ...prev, isProcessing: true }));
+
+    try {
+      if (confirmDialog.itemType === 'product' && confirmDialog.productId) {
+        const pId = confirmDialog.productId;
+        const pName = confirmDialog.highlightName;
+        try {
+          await adminDeleteProduct(pId, token || '');
+        } catch (err) {
+          console.error(err);
+        }
+        setProducts((prev) => prev.filter((p) => p._id !== pId));
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false, isProcessing: false }));
+        showToast(`Đã xóa thành công "${pName}" khỏi kho hàng!`, 'success');
+      } else if (confirmDialog.itemType === 'category') {
+        const cat = confirmDialog.category;
+        const idx = confirmDialog.categoryIndex;
+        if (cat?._id && token) {
+          try {
+            await adminDeleteCategory(cat._id, token);
+          } catch (err) {
+            console.error(err);
+          }
+        }
+        if (idx !== undefined) {
+          setCategories((prev) => prev.filter((_, i) => i !== idx));
+        } else if (cat?._id) {
+          setCategories((prev) => prev.filter((c) => c._id !== cat._id));
+        }
+        if (cat?.name) {
+          setExtraCategories((prev) => prev.filter((c) => c.label !== cat.name && c.value !== cat.name));
+        }
+
+        // Automatically update affected products in client state safely
+        if (cat) {
+          const cName = cat.name.toLowerCase();
+          const cSlug = (cat.slug || '').toLowerCase();
+          if (cat.type === 'brand') {
+            setProducts((prev) =>
+              prev.map((p) =>
+                (p.brand && p.brand.toLowerCase() === cName) ||
+                (cSlug && p.brand && p.brand.toLowerCase() === cSlug)
+                  ? { ...p, brand: 'Khác' }
+                  : p
+              )
+            );
+          } else if (cat.type === 'category' || !cat.type) {
+            setProducts((prev) =>
+              prev.map((p) =>
+                (p.category && p.category.toLowerCase() === (cSlug || cName)) ||
+                (p.category && p.category.toLowerCase() === cName)
+                  ? { ...p, category: 'may-anh-cu' }
+                  : p
+              )
+            );
+          }
+        }
+
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false, isProcessing: false }));
+        showToast(`Đã xóa "${cat?.name || ''}" thành công!`, 'success');
+      }
+    } catch (err) {
+      setConfirmDialog((prev) => ({ ...prev, isProcessing: false }));
+      showToast('Đã xảy ra lỗi: ' + (err instanceof Error ? err.message : String(err)), 'error');
+    }
   };
 
   // Reorder product display position
@@ -687,7 +824,11 @@ export default function AdminPage() {
 
     try {
       if (token) {
-        await adminReorderProduct({ productId: p._id, newOrder: newTargetOrder }, token);
+        await adminReorderProduct({
+          productId: p._id,
+          newOrder: newTargetOrder,
+          orderedIds: updatedProducts.map((item) => item._id),
+        }, token);
       }
       showToast(`Đã chuyển "${p.name}" sang vị trí #${newTargetOrder}`, 'success');
     } catch (err) {
@@ -708,7 +849,11 @@ export default function AdminPage() {
 
     try {
       if (token) {
-        await adminReorderProduct({ productId: p._id, newOrder: 1 }, token);
+        await adminReorderProduct({
+          productId: p._id,
+          newOrder: 1,
+          orderedIds: updatedProducts.map((item) => item._id),
+        }, token);
       }
       showToast(`Đã đưa "${p.name}" lên vị trí đầu tiên (Top 1)!`, 'success');
     } catch (err) {
@@ -757,12 +902,88 @@ export default function AdminPage() {
 
     try {
       if (token) {
-        await adminReorderProduct({ productId: p._id, newOrder: clampedTargetPos }, token);
+        await adminReorderProduct({
+          productId: p._id,
+          newOrder: clampedTargetPos,
+          orderedIds: updatedProducts.map((item) => item._id),
+        }, token);
       }
       showToast(`Đã chuyển "${p.name}" đến vị trí #${clampedTargetPos}`, 'success');
     } catch (err) {
       console.error('Failed to reorder:', err);
       showToast(`Đã cập nhật vị trí sản phẩm thành công`, 'success');
+    }
+  };
+
+  // Category Add for specific tab
+  const handleAddCategoryForTab = async (type: 'brand' | 'category' | 'price') => {
+    if (!newCatName.trim()) {
+      showToast('Vui lòng nhập tên trước khi bấm thêm', 'error');
+      return;
+    }
+    const trimmed = newCatName.trim();
+    try {
+      const res = await adminCreateCategory({ name: trimmed, type }, token || '');
+      if (res && res.category) {
+        setCategories((prev) => [...prev, res.category]);
+        showToast(`Đã thêm thành công: "${trimmed}"!`, 'success');
+      } else {
+        const newCat: Category = {
+          name: trimmed,
+          slug: trimmed.toLowerCase().replace(/\s+/g, '-'),
+          type,
+        };
+        setCategories((prev) => [...prev, newCat]);
+        showToast(`Đã thêm "${trimmed}"!`, 'success');
+      }
+      setNewCatName('');
+    } catch {
+      const newCat: Category = {
+        name: trimmed,
+        slug: trimmed.toLowerCase().replace(/\s+/g, '-'),
+        type,
+      };
+      setCategories((prev) => [...prev, newCat]);
+      setNewCatName('');
+      showToast(`Đã thêm "${trimmed}"!`, 'success');
+    }
+  };
+
+  const getCategoryTabConfig = (tab: 'brand' | 'category' | 'price') => {
+    switch (tab) {
+      case 'brand':
+        return {
+          title: 'Thêm thương hiệu mới',
+          inputPlaceholder: 'Nhập tên thương hiệu (Ví dụ: Leica, Hasselblad, Lumix, Fujifilm...)',
+          buttonLabel: 'Thêm thương hiệu',
+          listTitle: 'Danh sách thương hiệu hiện có',
+          typeLabel: 'Thương hiệu',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+          emptyText: 'Chưa có thương hiệu nào. Hãy thêm thương hiệu đầu tiên phía trên!',
+          items: brandCategories,
+        };
+      case 'category':
+        return {
+          title: 'Thêm danh mục sản phẩm mới',
+          inputPlaceholder: 'Nhập tên danh mục (Ví dụ: Máy ảnh cũ, Máy ảnh chính hãng, Ống kính, Phụ kiện...)',
+          buttonLabel: 'Thêm danh mục',
+          listTitle: 'Danh sách danh mục sản phẩm hiện có',
+          typeLabel: 'Danh mục',
+          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+          emptyText: 'Chưa có danh mục nào. Hãy thêm danh mục đầu tiên phía trên!',
+          items: mainCategories,
+        };
+      case 'price':
+        return {
+          title: 'Thêm khoảng / tầm giá mới',
+          inputPlaceholder: 'Nhập tầm giá (Ví dụ: Dưới 3 triệu, 3 - 5 triệu, 5 - 10 triệu, Trên 10 triệu...)',
+          buttonLabel: 'Thêm tầm giá',
+          listTitle: 'Danh sách khoảng giá hiện có',
+          typeLabel: 'Tầm giá',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          emptyText: 'Chưa có khoảng giá nào. Hãy thêm khoảng giá đầu tiên phía trên!',
+          items: priceCategories,
+        };
     }
   };
 
@@ -800,25 +1021,15 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteCategory = async (cat: Category, index: number) => {
-    if (!confirm(`Bạn có chắc muốn xóa nhãn danh mục "${cat.name}"?`)) return;
-    try {
-      if (cat._id && token) {
-        await adminDeleteCategory(cat._id, token);
-      }
-      setCategories((prev) => prev.filter((_, idx) => idx !== index));
-      showToast(`Đã xóa nhãn danh mục "${cat.name}"`, 'info');
-    } catch {
-      setCategories((prev) => prev.filter((_, idx) => idx !== index));
-      showToast(`Đã xóa nhãn danh mục "${cat.name}"`, 'info');
-    }
+  const handleDeleteCategory = (cat: Category, index: number) => {
+    promptDeleteCategory(cat, index);
   };
 
   // Category Edit Handlers
   const handleOpenEditCategory = (cat: Category) => {
     setEditingCategory(cat);
     setEditCatName(cat.name);
-    setEditCatType(cat.type || 'category');
+    setEditCatType(cat.type === 'brand' ? 'brand' : cat.type === 'price' ? 'price' : 'category');
     setIsEditCatModalOpen(true);
   };
 
@@ -887,50 +1098,23 @@ export default function AdminPage() {
     if (filterCategory !== 'all') {
       const fc = filterCategory.toLowerCase();
       const pc = (p.category || '').toLowerCase();
-      const pdt = (p.deviceType || '').toLowerCase();
       const match =
         pc === fc ||
-        pdt === fc ||
         (fc === 'may-anh-cu' && (pc.includes('cũ') || pc.includes('may-anh-cu'))) ||
         (fc === 'may-anh-chinh-hang' && (pc.includes('chính hãng') || pc.includes('may-anh-chinh-hang'))) ||
         (fc === 'ong-kinh' && (pc.includes('kính') || pc.includes('lens') || pc.includes('ong-kinh'))) ||
         (fc === 'phu-kien' && (pc.includes('kiện') || pc.includes('phu-kien')));
       if (!match) return false;
     }
-    if (filterStatus === 'available' && !p.isAvailable) return false;
-    if (filterStatus === 'sold' && p.isAvailable) return false;
     return true;
   });
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize) || 1;
   const paginatedProducts = filteredProducts.slice((adminPage - 1) * pageSize, adminPage * pageSize);
 
-  // Options for CustomDropdowns
-  const baseBrandOptions: DropdownOption[] = useMemo(() => [
-    { label: 'Sony', value: 'Sony' },
-    { label: 'Canon', value: 'Canon' },
-    { label: 'Fujifilm', value: 'Fujifilm' },
-    { label: 'Nikon', value: 'Nikon' },
-    { label: 'Lumix', value: 'Lumix' },
-    { label: 'Olympus', value: 'Olympus' },
-    { label: 'Ricoh', value: 'Ricoh' },
-    { label: 'Casio', value: 'Casio' },
-    { label: 'Leica', value: 'Leica' },
-    { label: 'Sigma', value: 'Sigma' },
-    { label: 'Tamron', value: 'Tamron' },
-    { label: 'Beike', value: 'Beike' },
-    { label: 'Ulanzi', value: 'Ulanzi' },
-    { label: 'Godox', value: 'Godox' },
-    { label: 'Caden', value: 'Caden' },
-    { label: 'VSGO', value: 'VSGO' },
-    { label: 'Khác', value: 'Khác' },
-  ], []);
-
-  // Distinct brand list for filtering & display - synchronized across all sources
+  // Distinct brand list for filtering & display - synchronized from database
   const allBrands = useMemo(() => {
     const brandSet = new Set<string>();
-
-    baseBrandOptions.forEach((opt) => brandSet.add(opt.value));
 
     categories
       .filter((c) => c.type === 'brand')
@@ -943,27 +1127,27 @@ export default function AdminPage() {
     });
 
     return Array.from(brandSet).filter(Boolean);
-  }, [categories, extraBrands, products, baseBrandOptions]);
+  }, [categories, extraBrands, products]);
 
   // Merged brand options for dropdowns
   const allBrandOptions: DropdownOption[] = useMemo(() => {
     return allBrands.map((b) => ({ label: b, value: b }));
   }, [allBrands]);
 
-  // Statistics
+  // Separate category collections by type for individual tabs
+  const brandCategories = useMemo(() => categories.filter((c) => c.type === 'brand'), [categories]);
+  const mainCategories = useMemo(() => categories.filter((c) => c.type === 'category' || !c.type), [categories]);
+  const priceCategories = useMemo(() => categories.filter((c) => c.type === 'price'), [categories]);
+
+  // Statistics (Accurate count matching MongoDB Atlas)
   const totalCount = products.length;
-  const availableCount = products.filter((p) => p.isAvailable).length;
-  const soldCount = totalCount - availableCount;
-  const brandCount = allBrands.length;
+  const brandCount = brandCategories.length;
 
   const baseCategoryOptions: DropdownOption[] = useMemo(() => [
     { label: 'Máy ảnh cũ', value: 'may-anh-cu' },
     { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang' },
     { label: 'Ống kính (Lens)', value: 'ong-kinh' },
     { label: 'Phụ kiện máy ảnh', value: 'phu-kien' },
-    { label: 'Mirrorless', value: 'Mirrorless' },
-    { label: 'DSLR', value: 'DSLR' },
-    { label: 'Compact / Y2K', value: 'Compact' },
   ], []);
 
   const allCategoryOptions: DropdownOption[] = useMemo(() => {
@@ -971,7 +1155,7 @@ export default function AdminPage() {
     const seen = new Set(list.map((c) => c.value.toLowerCase()));
 
     categories
-      .filter((c) => c.type === 'category' || c.type === 'device_type' || !c.type)
+      .filter((c) => c.type === 'category' || !c.type)
       .forEach((c) => {
         const slug = c.slug || c.name;
         if (!seen.has(slug.toLowerCase()) && slug.toLowerCase() !== 'all') {
@@ -1007,17 +1191,10 @@ export default function AdminPage() {
     ...allCategoryOptions,
   ];
 
-  const filterStatusOptions: DropdownOption[] = [
-    { label: 'Tất cả trạng thái', value: 'all' },
-    { label: 'Đang sẵn hàng', value: 'available' },
-    { label: 'Đã bán', value: 'sold' },
-  ];
-
   const catTypeOptions: DropdownOption[] = [
     { label: 'Danh mục chính (Category)', value: 'category' },
     { label: 'Thương hiệu (Brand)', value: 'brand' },
     { label: 'Tầm giá (Price)', value: 'price' },
-    { label: 'Định dạng máy (Device Type)', value: 'device_type' },
   ];
 
   // If not logged in, render Admin Login screen
@@ -1137,8 +1314,8 @@ export default function AdminPage() {
       </div>
 
       {/* Quick Stats Overview Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Products */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* 1. Tổng máy ảnh */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng máy ảnh</span>
@@ -1153,37 +1330,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Available */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đang sẵn hàng</span>
-            {isLoading ? (
-              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
-            ) : (
-              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight mt-1">{availableCount}</div>
-            )}
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
-            <PackageCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-        </div>
-
-        {/* Sold */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đã chốt bán</span>
-            {isLoading ? (
-              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
-            ) : (
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-500 tracking-tight mt-1">{soldCount}</div>
-            )}
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
-            <PackageX className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-        </div>
-
-        {/* Brands Count */}
+        {/* 2. Thương hiệu */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Thương hiệu</span>
@@ -1191,7 +1338,7 @@ export default function AdminPage() {
               <div className="h-8 w-20 bg-slate-200 rounded-lg animate-pulse mt-1" />
             ) : (
               <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 tracking-tight mt-1">
-                {brandCount} <span className="text-sm font-semibold text-slate-500">hãng</span>
+                {brandCount} <span className="text-xs sm:text-sm font-semibold text-slate-500">hãng</span>
               </div>
             )}
           </div>
@@ -1199,9 +1346,43 @@ export default function AdminPage() {
             <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
+
+        {/* 3. Danh mục */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Danh mục</span>
+            {isLoading ? (
+              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight mt-1">
+                {mainCategories.length} <span className="text-xs sm:text-sm font-semibold text-slate-500">danh mục</span>
+              </div>
+            )}
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+            <FolderPlus className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+        </div>
+
+        {/* 4. Tầm giá */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tầm giá</span>
+            {isLoading ? (
+              <div className="h-8 w-16 bg-slate-200 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-violet-600 tracking-tight mt-1">
+                {priceCategories.length} <span className="text-xs sm:text-sm font-semibold text-slate-500">khoảng giá</span>
+              </div>
+            )}
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-600 shrink-0">
+            <Tag className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+        </div>
       </div>
 
-      {/* Admin Tabs: Tất cả sản phẩm vs Quản lý danh mục */}
+      {/* Admin Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
         <button
           type="button"
@@ -1217,33 +1398,54 @@ export default function AdminPage() {
         >
           <Camera className="w-4 h-4 shrink-0" />
           <span>Tất cả sản phẩm</span>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'products' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {totalCount}
-          </span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('categories')}
+          onClick={() => {
+            setActiveTab('brand');
+            setNewCatType('brand');
+          }}
           className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-            activeTab === 'categories'
+            activeTab === 'brand'
               ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
               : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <SlidersHorizontal className="w-4 h-4 shrink-0" />
-          <span>Quản lý danh mục</span>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
-              activeTab === 'categories' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {categories.length}
-          </span>
+          <span>Thương hiệu</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('category');
+            setNewCatType('category');
+          }}
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            activeTab === 'category'
+              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
+              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <FolderPlus className="w-4 h-4 shrink-0" />
+          <span>Danh mục</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('price');
+            setNewCatType('price');
+          }}
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            activeTab === 'price'
+              ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/40'
+              : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Tag className="w-4 h-4 shrink-0" />
+          <span>Tầm giá</span>
         </button>
       </div>
 
@@ -1301,16 +1503,6 @@ export default function AdminPage() {
                   }}
                 />
 
-                {/* Status Filter */}
-                <CustomDropdown
-                  options={filterStatusOptions}
-                  value={filterStatus}
-                  onChange={(val) => {
-                    setFilterStatus(val as 'all' | 'available' | 'sold');
-                    setAdminPage(1);
-                  }}
-                />
-
                 {/* Add New Button */}
                 <button
                   onClick={handleOpenCreate}
@@ -1323,7 +1515,7 @@ export default function AdminPage() {
             </div>
 
             {/* Filter result feedback */}
-            {(searchTerm || filterBrand !== 'all' || filterCategory !== 'all' || filterStatus !== 'all') && (
+            {(searchTerm || filterBrand !== 'all' || filterCategory !== 'all') && (
               <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
                 <span>
                   Tìm thấy <strong className="text-slate-800">{filteredProducts.length}</strong> sản phẩm phù hợp
@@ -1333,7 +1525,6 @@ export default function AdminPage() {
                     setSearchTerm('');
                     setFilterBrand('all');
                     setFilterCategory('all');
-                    setFilterStatus('all');
                     setAdminPage(1);
                   }}
                   className="text-amber-600 hover:underline font-semibold cursor-pointer"
@@ -1352,11 +1543,11 @@ export default function AdminPage() {
                   <tr>
                     <th className="py-3.5 px-3 text-center w-28 whitespace-nowrap">Vị trí / STT</th>
                     <th className="py-3.5 px-4 text-left">Ảnh &amp; Tên sản phẩm</th>
-                    <th className="py-3.5 px-4 text-center">Hãng</th>
-                    <th className="py-3.5 px-4 text-center">Giá bán</th>
-                    <th className="py-3.5 px-4 text-center">Kho ảnh</th>
-                    <th className="py-3.5 px-4 text-center">Trạng thái</th>
-                    <th className="py-3.5 px-4 text-center">Thao tác</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Hãng</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Danh mục</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Giá bán</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Kho ảnh</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -1375,17 +1566,17 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="h-6 w-16 bg-slate-200 rounded-full mx-auto" />
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="h-6 w-14 bg-slate-200 rounded-full mx-auto" />
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <div className="h-6 w-20 bg-slate-200 rounded-full mx-auto" />
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="h-5 w-24 bg-slate-200 rounded mx-auto" />
                         </td>
-                        <td className="py-3.5 px-4 text-center">
+                        <td className="py-3.5 px-3 text-center">
                           <div className="h-5 w-14 bg-slate-200 rounded mx-auto" />
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="h-6 w-20 bg-slate-200 rounded-full mx-auto" />
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex justify-center gap-2">
@@ -1468,38 +1659,33 @@ export default function AdminPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-3.5 px-3 text-center whitespace-nowrap">
                             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 whitespace-nowrap inline-block">
                               {p.brand}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap inline-block">
+                              {allCategoryOptions.find((opt) => opt.value.toLowerCase() === (p.category || '').toLowerCase())?.label ||
+                                (p.category === 'may-anh-cu'
+                                  ? 'Máy ảnh cũ'
+                                  : p.category === 'may-anh-chinh-hang'
+                                  ? 'Chính hãng'
+                                  : p.category === 'ong-kinh'
+                                  ? 'Ống kính'
+                                  : p.category === 'phu-kien'
+                                  ? 'Phụ kiện'
+                                  : p.category || '-')}
                             </span>
                           </td>
                           {/* Price formatted CellphoneS style (bold red with dots) */}
                           <td className="py-3.5 px-4 text-center font-extrabold text-red-600 whitespace-nowrap text-sm sm:text-base tracking-tight">
                             {formatVND(p.price)}
                           </td>
-                          <td className="py-3.5 px-4 text-center text-xs font-mono text-slate-500 whitespace-nowrap">
+                          <td className="py-3.5 px-3 text-center text-xs font-mono text-slate-500 whitespace-nowrap">
                             <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 inline-block">
                               {p.images?.length || 0} ảnh
                             </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAvailability(p)}
-                              title="Bấm để đổi trạng thái Đang bán / Đã bán"
-                              className={`px-2.5 py-1 rounded-full text-xs font-bold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
-                                p.isAvailable
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  p.isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
-                                }`}
-                              ></span>
-                              <span>{p.isAvailable ? 'Đang bán' : 'Đã bán'}</span>
-                            </button>
                           </td>
                           <td className="py-3.5 px-4 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
@@ -1603,157 +1789,118 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 2: QUẢN LÝ DANH MỤC */}
-      {activeTab === 'categories' && (
-        <div className="space-y-6">
-          {/* Add Category Form Card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-5 h-5 text-amber-500" />
-              <h3 className="font-bold text-slate-900 text-base">Thêm danh mục &amp; nhãn phân loại mới</h3>
-            </div>
-            <div className="flex flex-wrap gap-3 items-center">
-              <input
-                type="text"
-                placeholder="Tên danh mục / nhãn (Ví dụ: Leica, Dưới 3 triệu, Phụ kiện máy ảnh...)"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCategory();
-                  }
-                }}
-                className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-              />
-              <CustomDropdown
-                options={catTypeOptions}
-                value={newCatType}
-                onChange={(v) => setNewCatType(v as any)}
-                className="min-w-[220px]"
-              />
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Thêm danh mục</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Categories Grid Header & Filter */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-amber-500" />
-                <h4 className="font-bold text-slate-900 text-sm">
-                  Danh sách nhãn hiện có ({filteredCategories.length})
-                </h4>
-              </div>
-
-              {/* Filter chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { label: 'Tất cả', value: 'all' },
-                  { label: 'Danh mục', value: 'category' },
-                  { label: 'Hãng', value: 'brand' },
-                  { label: 'Tầm giá', value: 'price' },
-                  { label: 'Định dạng', value: 'device_type' },
-                ].map((chip) => (
+      {/* TABS: THƯƠNG HIỆU, DANH MỤC, TẦM GIÁ, ĐỊNH DẠNG MÁY */}
+      {activeTab !== 'products' && (
+        (() => {
+          const cfg = getCategoryTabConfig(activeTab);
+          return (
+            <div className="space-y-6">
+              {/* Add Box for Active Tab */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2">
+                  <FolderPlus className="w-5 h-5 text-amber-500" />
+                  <h3 className="font-bold text-slate-900 text-base">{cfg.title}</h3>
+                </div>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <input
+                    type="text"
+                    placeholder={cfg.inputPlaceholder}
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCategoryForTab(activeTab);
+                      }
+                    }}
+                    className="flex-1 min-w-[220px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                  />
                   <button
-                    key={chip.value}
                     type="button"
-                    onClick={() => setCategoryFilterType(chip.value)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      categoryFilterType === chip.value
-                        ? 'bg-amber-500 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    onClick={() => handleAddCategoryForTab(activeTab)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xs transition-all cursor-pointer whitespace-nowrap"
                   >
-                    {chip.label}
+                    <Plus className="w-4 h-4" />
+                    <span>{cfg.buttonLabel}</span>
                   </button>
-                ))}
+                </div>
               </div>
-            </div>
 
-            {filteredCategories.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm">
-                Chưa có danh mục nào thuộc nhóm này.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
-                {filteredCategories.map((c, idx) => {
-                  const typeLabel =
-                    c.type === 'category'
-                      ? 'Danh mục'
-                      : c.type === 'brand'
-                      ? 'Thương hiệu'
-                      : c.type === 'price'
-                      ? 'Tầm giá'
-                      : 'Định dạng';
+              {/* Items Grid */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-amber-500" />
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      {cfg.listTitle} ({cfg.items.length})
+                    </h4>
+                  </div>
+                </div>
 
-                  const typeColor =
-                    c.type === 'category'
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : c.type === 'brand'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : c.type === 'price'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-purple-50 text-purple-700 border-purple-200';
-
-                  return (
-                    <div
-                      key={c._id || `${c.slug}-${idx}`}
-                      className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/90 hover:border-amber-400 hover:bg-white hover:shadow-sm transition-all group"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <h5 className="font-bold text-slate-900 text-sm truncate" title={c.name}>
-                          {c.name}
-                        </h5>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span
-                            className={`text-[10px] font-mono border px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${typeColor}`}
+                {cfg.items.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-sm">
+                    {cfg.emptyText}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                    {cfg.items.map((c, idx) => (
+                      <div
+                        key={c._id || `${c.slug}-${idx}`}
+                        className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50/70 border border-slate-200/90 hover:border-amber-400 hover:bg-white hover:shadow-sm transition-all group"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <h5 className="font-bold text-slate-900 text-sm truncate" title={c.name}>
+                            {c.name}
+                          </h5>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`text-[10px] font-mono border px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${cfg.badgeColor}`}
+                            >
+                              {cfg.typeLabel}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400 truncate max-w-[120px]">
+                              {c.slug}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditCategory(c)}
+                            className="p-2 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
+                            title="Sửa nhãn này"
                           >
-                            {typeLabel}
-                          </span>
-                          <span className="text-[11px] font-mono text-slate-400 truncate max-w-[120px]">
-                            {c.slug}
-                          </span>
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => promptDeleteCategory(c, idx)}
+                            className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Xóa nhãn này"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditCategory(c)}
-                          className="p-2 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
-                          title="Sửa danh mục này"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCategory(c, idx)}
-                          className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Xóa danh mục này"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          );
+        })()
       )}
 
       {/* EDIT CATEGORY MODAL */}
-      {isEditCatModalOpen && editingCategory && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {mounted && isEditCatModalOpen && editingCategory && createPortal(
+        <div 
+          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-200"
+          onClick={() => setIsEditCatModalOpen(false)}
+        >
+          <div 
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
               <div className="flex items-center gap-2">
@@ -1817,28 +1964,41 @@ export default function AdminPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CREATE / EDIT PRODUCT MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
+      {mounted && isModalOpen && createPortal(
+        <div 
+          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overscroll-contain animate-in fade-in duration-150"
+          onClick={() => !uploadingImages && setIsModalOpen(false)}
+        >
+          <div 
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl h-[90vh] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/90">
               <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
                 {modalMode === 'create' ? 'Thêm Máy Ảnh Mới Vào Kho' : `Chỉnh Sửa: ${name}`}
               </h3>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Đóng modal"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body / Form */}
-            <form onSubmit={handleSubmitProduct} className="p-6 overflow-y-auto space-y-5 flex-1">
+            {/* Modal Body / Scrollable Form */}
+            <form 
+              id="product-form"
+              onSubmit={handleSubmitProduct} 
+              className="p-6 overflow-y-auto overscroll-contain space-y-5 flex-1"
+            >
               {/* Product Name */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -1956,18 +2116,20 @@ export default function AdminPage() {
                     <input
                       type="number"
                       min={1}
-                      max={products.length + 1}
+                      max={modalMode === 'create' ? products.length + 1 : products.length}
                       value={displayOrder}
                       onChange={(e) => setDisplayOrder(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10)))}
                       placeholder="1"
                       className="w-24 bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 text-center"
                     />
-                    <span className="text-xs text-slate-400 font-mono">/ {products.length} máy</span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      / {Math.max(1, modalMode === 'create' ? products.length + 1 : products.length)} máy
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Multi-image Upload Zone */}
+              {/* Multi-image Upload Zone with Zero Layout Shift */}
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Album ảnh ngoại hình tự chụp (tối đa 15 ảnh) *
@@ -1979,11 +2141,13 @@ export default function AdminPage() {
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors ${
-                    dragActive
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-amber-300 bg-amber-50/40 hover:bg-amber-50/80'
+                  onClick={() => !uploadingImages && fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-5 sm:p-6 text-center transition-all ${
+                    uploadingImages
+                      ? 'border-amber-400 bg-amber-50/80 cursor-wait'
+                      : dragActive
+                      ? 'border-amber-500 bg-amber-50 cursor-pointer'
+                      : 'border-amber-300 bg-amber-50/40 hover:bg-amber-50/80 cursor-pointer'
                   }`}
                 >
                   <input
@@ -1993,31 +2157,38 @@ export default function AdminPage() {
                     accept="image/*,.heic,.heif,.jfif,.webp,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.avif,.svg,.dng,.raw,.cr2,.nef,.arw"
                     onChange={handleFileInput}
                     className="hidden"
+                    tabIndex={-1}
+                    aria-hidden="true"
                   />
-                  <Upload className="w-8 h-8 mx-auto text-amber-600 mb-2" />
-                  <p className="text-sm font-bold text-slate-800">
-                    Kéo &amp; thả ảnh vào đây, <span className="text-amber-600 underline">bấm chọn ảnh</span> hoặc dán (Ctrl+V / Cmd+V)
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Hỗ trợ tất cả định dạng: JPG, PNG, WEBP, HEIC (iPhone), JFIF, ảnh chụp màn hình, ảnh cắt... (Tối đa 15 ảnh)
-                  </p>
+                  {uploadingImages ? (
+                    <div className="py-2 space-y-2.5">
+                      <div className="w-8 h-8 mx-auto border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="flex items-center justify-between max-w-xs mx-auto text-xs font-bold text-amber-800">
+                        <span>Đang tối ưu &amp; tải ảnh lên hệ thống...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full max-w-xs mx-auto bg-amber-200/60 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-amber-500 h-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Vui lòng đợi giây lát, ảnh đang được nén và upload lên hệ thống...
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 mx-auto text-amber-600 mb-2" />
+                      <p className="text-sm font-bold text-slate-800">
+                        Kéo &amp; thả ảnh vào đây, <span className="text-amber-600 underline">bấm chọn ảnh</span> hoặc dán (Ctrl+V / Cmd+V)
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Hỗ trợ tất cả định dạng: JPG, PNG, WEBP, HEIC (iPhone), JFIF, ảnh chụp màn hình, ảnh cắt... (Tối đa 15 ảnh)
+                      </p>
+                    </>
+                  )}
                 </div>
-
-                {/* Upload Progress Bar */}
-                {uploadingImages && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-amber-600 font-semibold">
-                      <span>Đang nén &amp; tải ảnh lên hệ thống...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-amber-500 h-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Image Previews Grid */}
                 {images.length > 0 && (
@@ -2070,18 +2241,8 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Availability & Featured Checkboxes */}
+              {/* Featured Checkbox */}
               <div className="flex flex-wrap items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAvailable}
-                    onChange={(e) => setIsAvailable(e.target.checked)}
-                    className="w-4 h-4 rounded text-amber-500 bg-slate-100 border-slate-300"
-                  />
-                  <span>Đang có sẵn hàng (bỏ chọn nếu đã bán)</span>
-                </label>
-
                 <label className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
@@ -2092,43 +2253,46 @@ export default function AdminPage() {
                   <span>Gắn nhãn Nổi Bật (Featured)</span>
                 </label>
               </div>
-
-              {/* Submit Buttons */}
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
-                >
-                  {modalMode === 'create' ? 'Tạo Sản Phẩm Mới' : 'Lưu Thay Đổi'}
-                </button>
-              </div>
             </form>
+
+            {/* Modal Pinned Footer (Always visible, perfectly steady) */}
+            <div className="shrink-0 flex items-center justify-end gap-3 px-6 py-3.5 border-t border-slate-200 bg-slate-50/95">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="submit"
+                form="product-form"
+                disabled={uploadingImages}
+                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-bold shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {modalMode === 'create' ? 'Tạo Sản Phẩm Mới' : 'Lưu Thay Đổi'}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* CUSTOM CONFIRM DELETE DIALOG (CENTERED & BRAND SYNCHRONIZED) */}
-      {deleteDialog.isOpen && (
+      {/* UNIFIED CONFIRM DELETE DIALOG (FOR PRODUCT & CATEGORY DELETIONS) */}
+      {mounted && confirmDialog.isOpen && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
-          onClick={handleCancelDelete}
+          className="fixed inset-0 w-screen h-screen min-h-screen z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overscroll-contain animate-in fade-in duration-150"
+          onClick={handleCancelConfirm}
         >
           <div 
-            className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-7 shadow-2xl relative text-center animate-in zoom-in-95 duration-150 overflow-hidden my-auto"
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-7 shadow-2xl relative text-center animate-in zoom-in-95 duration-150 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close 'X' Button */}
             <button
               type="button"
-              onClick={handleCancelDelete}
-              disabled={deleteDialog.isDeleting}
+              onClick={handleCancelConfirm}
+              disabled={confirmDialog.isProcessing}
               className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
               title="Đóng"
             >
@@ -2142,35 +2306,35 @@ export default function AdminPage() {
 
             {/* Dialog Heading */}
             <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-2">
-              Xác Nhận Xóa Sản Phẩm?
+              {confirmDialog.title}
             </h3>
 
-            {/* Description with Highlighted Product Name */}
+            {/* Description with Highlighted Name */}
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6 px-1">
-              Bạn có chắc chắn muốn xóa máy ảnh này khỏi kho hàng không?
+              {confirmDialog.description}
               <span className="block my-2.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-sm truncate shadow-2xs">
-                &ldquo;{deleteDialog.productName}&rdquo;
+                &ldquo;{confirmDialog.highlightName}&rdquo;
               </span>
-              Thao tác này sẽ gỡ máy vĩnh viễn khỏi danh mục hiển thị.
+              {confirmDialog.note}
             </p>
 
             {/* Buttons: Cancel & Confirm Delete */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={handleCancelDelete}
-                disabled={deleteDialog.isDeleting}
+                onClick={handleCancelConfirm}
+                disabled={confirmDialog.isProcessing}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDelete}
-                disabled={deleteDialog.isDeleting}
+                onClick={handleExecuteConfirm}
+                disabled={confirmDialog.isProcessing}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-rose-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {deleteDialog.isDeleting ? (
+                {confirmDialog.isProcessing ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span>Đang xóa...</span>
@@ -2178,17 +2342,18 @@ export default function AdminPage() {
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    <span>Xác nhận xóa</span>
+                    <span>{confirmDialog.confirmLabel || 'Xác nhận xóa'}</span>
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* GLOBAL TOAST NOTIFICATION */}
-      {toast && (
+      {mounted && toast && createPortal(
         <div className="fixed top-6 right-6 z-[60] flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white shadow-2xl border border-slate-700/60 animate-in slide-in-from-top-4 fade-in duration-200 max-w-sm sm:max-w-md">
           {toast.type === 'success' && (
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
@@ -2216,7 +2381,8 @@ export default function AdminPage() {
           >
             <X className="w-4 h-4" />
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

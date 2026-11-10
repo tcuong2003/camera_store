@@ -8,14 +8,13 @@ export interface FilterState {
   priceCategory: string;
   brand: string;
   category: string;
-  deviceType: string;
   sort: string;
 }
 
 export interface CategoryOption {
   label: string;
   value: string;
-  type: 'all' | 'category' | 'deviceType';
+  type: 'all' | 'category';
 }
 
 interface FilterBarProps {
@@ -31,9 +30,6 @@ export const CATEGORY_OPTIONS: CategoryOption[] = [
   { label: 'Máy ảnh chính hãng', value: 'may-anh-chinh-hang', type: 'category' },
   { label: 'Ống kính (Lens)', value: 'ong-kinh', type: 'category' },
   { label: 'Phụ kiện máy ảnh', value: 'phu-kien', type: 'category' },
-  { label: 'Mirrorless', value: 'Mirrorless', type: 'deviceType' },
-  { label: 'DSLR', value: 'DSLR', type: 'deviceType' },
-  { label: 'Compact / Y2K', value: 'Compact', type: 'deviceType' },
 ];
 
 export const PRICE_OPTIONS = [
@@ -72,14 +68,15 @@ export const SORT_OPTIONS = [
 ];
 
 export default function FilterBar({ filters, onChange, totalCount, availableCategories }: FilterBarProps) {
-  const [extraCats, setExtraCats] = useState<{ label: string; value: string; type?: 'category' | 'deviceType' }[]>([]);
+  const [extraCats, setExtraCats] = useState<{ label: string; value: string; type?: 'category' }[]>([]);
 
   useEffect(() => {
     fetchCategories()
       .then((cats) => {
         if (cats && cats.length > 0) {
+          // Strictly only include categories with type === 'category' (never price or brand)
           const custom = cats
-            .filter((c) => c.type !== 'brand')
+            .filter((c) => c.type === 'category')
             .filter(
               (c) =>
                 !CATEGORY_OPTIONS.some(
@@ -91,7 +88,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
             .map((c) => ({
               label: c.name,
               value: c.slug || c.name,
-              type: (c.type === 'device_type' ? 'deviceType' : 'category') as 'category' | 'deviceType',
+              type: 'category' as const,
             }));
           setExtraCats(custom);
         }
@@ -106,7 +103,7 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
     extraCats.forEach((c) => {
       if (!existingValues.has(c.value.toLowerCase())) {
         existingValues.add(c.value.toLowerCase());
-        list.push({ label: c.label, value: c.value, type: c.type || 'category' });
+        list.push({ label: c.label, value: c.value, type: 'category' });
       }
     });
 
@@ -129,34 +126,28 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
   const isFiltered =
     filters.priceCategory !== 'all' ||
     filters.brand !== 'all' ||
-    filters.category !== 'all' ||
-    filters.deviceType !== 'all';
+    filters.category !== 'all';
 
   const resetFilters = () => {
     onChange({
       priceCategory: 'all',
       brand: 'all',
       category: 'all',
-      deviceType: 'all',
       sort: 'newest',
     });
   };
 
   const handleCategorySelect = (opt: CategoryOption) => {
     if (opt.value === 'all') {
-      onChange({ ...filters, category: 'all', deviceType: 'all' });
-    } else if (opt.type === 'category') {
-      onChange({ ...filters, category: opt.value, deviceType: 'all' });
-    } else if (opt.type === 'deviceType') {
-      onChange({ ...filters, category: 'all', deviceType: opt.value });
+      onChange({ ...filters, category: 'all' });
+    } else {
+      onChange({ ...filters, category: opt.value });
     }
   };
 
   const isCatActive = (opt: CategoryOption) => {
-    if (opt.value === 'all') return filters.category === 'all' && filters.deviceType === 'all';
-    if (opt.type === 'category') return filters.category?.toLowerCase() === opt.value.toLowerCase();
-    if (opt.type === 'deviceType') return filters.deviceType?.toLowerCase() === opt.value.toLowerCase();
-    return false;
+    if (opt.value === 'all') return filters.category === 'all';
+    return filters.category?.toLowerCase() === opt.value.toLowerCase();
   };
 
   return (
@@ -179,8 +170,8 @@ export default function FilterBar({ filters, onChange, totalCount, availableCate
         )}
       </div>
 
-      {/* Category Pills List: 1 single row with horizontal scroll on mobile, flex-wrap on desktop */}
-      <div className="flex flex-nowrap md:flex-wrap items-center gap-2 py-1 w-full overflow-x-auto scrollbar-none touch-pan-x overscroll-contain">
+      {/* Category Pills List: strictly 1 single scrollable row on all screen sizes */}
+      <div className="flex flex-nowrap items-center gap-2 py-1.5 w-full overflow-x-auto scrollbar-none touch-pan-x overscroll-contain">
         {allCategoryPills.map((opt) => {
           const active = isCatActive(opt);
           return (
