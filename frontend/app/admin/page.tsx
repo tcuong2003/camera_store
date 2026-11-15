@@ -44,6 +44,7 @@ import {
   fetchCategories,
   formatVND,
   clearApiCache,
+  getThumbnailUrl,
 } from '../../lib/api';
 import { Product, Category } from '../../lib/mockData';
 import CustomDropdown, { DropdownOption } from '../../components/CustomDropdown';
@@ -1629,7 +1630,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-3">
                               {p.images?.[0] ? (
                                 <img
-                                  src={sanitizeImageUrl(p.images[0])}
+                                  src={getThumbnailUrl(p.images[0])}
                                   alt={p.name}
                                   className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200 shadow-2xs"
                                 />
@@ -2189,12 +2190,14 @@ export default function AdminPage() {
                         className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group shadow-2xs"
                       >
                         <img
-                          src={sanitizeImageUrl(imgUrl)}
+                          src={getThumbnailUrl(imgUrl)}
                           alt={`Ảnh ${idx + 1}`}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             if (target.src.includes('.heic') || target.src.includes('.heif')) {
                               target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                            } else if (target.src !== imgUrl) {
+                              target.src = imgUrl;
                             }
                           }}
                           className="w-full h-full object-cover"

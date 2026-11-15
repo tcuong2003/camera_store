@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Product } from '../lib/mockData';
-import { formatVND } from '../lib/api';
+import { formatVND, getCardThumbnailUrl } from '../lib/api';
 import { Images, Camera } from 'lucide-react';
 
 interface ProductCardProps {
@@ -47,13 +47,15 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 flex items-center justify-center">
         {thumbnail && !imageError ? (
           <img
-            src={thumbnail}
+            src={getCardThumbnailUrl(thumbnail)}
             alt={product.name}
             loading="lazy"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               if (target.src.includes('.heic') || target.src.includes('.heif')) {
                 target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+              } else if (target.src !== thumbnail) {
+                target.src = thumbnail;
               } else {
                 setImageError(true);
               }

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, Maximize2, X, Camera } from 'lucide-react';
+import { getThumbnailUrl, getMainDisplayImageUrl } from '../lib/api';
 
 interface ImageGalleryProps {
   images: string[];
@@ -59,12 +60,14 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
       {/* Main Large Image View */}
       <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 group shadow-md">
         <img
-          src={currentImage}
+          src={getMainDisplayImageUrl(currentImage)}
           alt={`${productName} - Ảnh ${selectedIndex + 1}`}
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             if (target.src.includes('.heic') || target.src.includes('.heif')) {
               target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+            } else if (target.src !== currentImage) {
+              target.src = currentImage;
             }
           }}
           className="w-full h-full object-contain sm:object-cover"
@@ -133,12 +136,15 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 }`}
               >
                 <img
-                  src={img}
+                  src={getThumbnailUrl(img)}
                   alt={`Thumbnail ${idx + 1}`}
+                  loading="eager"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     if (target.src.includes('.heic') || target.src.includes('.heif')) {
                       target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                    } else if (target.src !== img) {
+                      target.src = img;
                     }
                   }}
                   className="w-full h-full object-cover"
@@ -221,7 +227,19 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                   selectedIndex === idx ? 'border-amber-500 ring-2 ring-amber-400/80 shadow-lg' : 'border-slate-800 opacity-50 hover:opacity-80'
                 }`}
               >
-                <img src={img} alt="Thumb" className="w-full h-full object-cover" />
+                <img
+                  src={getThumbnailUrl(img)}
+                  alt="Thumb"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                      target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                    } else if (target.src !== img) {
+                      target.src = img;
+                    }
+                  }}
+                  className="w-full h-full object-cover"
+                />
               </button>
             ))}
           </div>

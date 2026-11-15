@@ -65,6 +65,35 @@ export const formatVND = (price: number): string => {
   return `${formatted}đ`;
 };
 
+// Cloudinary URL optimizer for instant loading & lightweight responsive images
+export const getOptimizedImageUrl = (url: string, transform: string): string => {
+  if (!url) return '';
+  const clean = url.replace(/\.(heic|heif)$/i, '.jpg');
+  if (clean.includes('res.cloudinary.com') && clean.includes('/upload/')) {
+    // Avoid double-injecting if already transformed
+    if (clean.includes('/upload/w_') || clean.includes('/upload/c_') || clean.includes('/upload/f_')) {
+      return clean;
+    }
+    return clean.replace('/upload/', `/upload/${transform}/`);
+  }
+  return clean;
+};
+
+// Ultra-lightweight thumbnail (160x160, auto WebP/AVIF, ~4KB instead of 200KB)
+export const getThumbnailUrl = (url: string): string => {
+  return getOptimizedImageUrl(url, 'w_160,h_160,c_fill,g_auto,q_auto,f_auto');
+};
+
+// Medium thumbnail for product cards in catalog grid (600x450, ~25KB)
+export const getCardThumbnailUrl = (url: string): string => {
+  return getOptimizedImageUrl(url, 'w_600,h_450,c_fill,q_auto,f_auto');
+};
+
+// High-res display for product detail main view (max 1200px, auto format & quality, ~70KB)
+export const getMainDisplayImageUrl = (url: string): string => {
+  return getOptimizedImageUrl(url, 'w_1200,c_limit,q_auto,f_auto');
+};
+
 // Cache disabled - all requests fetch fresh real-time data with cache: 'no-store'
 export const clearApiCache = () => {
   // cache is disabled
