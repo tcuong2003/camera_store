@@ -6,23 +6,25 @@ export const getApiBaseUrl = (): string => {
     return envUrl.replace(/\/$/, '');
   }
 
-  // Browser: relative /api or custom URL
-  if (typeof window !== 'undefined') {
-    return envUrl || '/api';
+  // Browser: if relative /api was specifically configured
+  if (typeof window !== 'undefined' && envUrl) {
+    return envUrl.replace(/\/$/, '');
   }
 
   // Node.js server (SSR / Server Component): Must be an absolute URL
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}${envUrl || '/api'}`;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}${envUrl || '/api'}`;
-  }
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}${envUrl || '/api'}`;
-  }
-  if (process.env.FRONTEND_URL) {
-    return `${process.env.FRONTEND_URL.replace(/\/$/, '')}${envUrl || '/api'}`;
+  if (envUrl && !/^https?:\/\//i.test(envUrl)) {
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+      return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}${envUrl}`;
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}${envUrl}`;
+    }
+    if (process.env.NEXT_PUBLIC_SITE_URL) {
+      return `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}${envUrl}`;
+    }
+    if (process.env.FRONTEND_URL) {
+      return `${process.env.FRONTEND_URL.replace(/\/$/, '')}${envUrl}`;
+    }
   }
 
   return 'https://mayanhtop1-backend.onrender.com/api';
@@ -94,9 +96,17 @@ export const getMainDisplayImageUrl = (url: string): string => {
   return getOptimizedImageUrl(url, 'w_1200,c_limit,q_auto,f_auto');
 };
 
-// Cache disabled - all requests fetch fresh real-time data with cache: 'no-store'
+// Smart cache invalidation helper
 export const clearApiCache = () => {
-  // cache is disabled
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem('mayanhtop1_cached_products');
+      sessionStorage.removeItem('mayanhtop1_cached_categories');
+      localStorage.removeItem('mayanhtop1_cached_products');
+      localStorage.removeItem('mayanhtop1_cached_categories');
+      localStorage.setItem('mayanhtop1_cache_cleared_at', Date.now().toString());
+    } catch {}
+  }
 };
 
 // Generate Zalo chat link with optional product URL
@@ -111,8 +121,8 @@ export const getZaloChatUrl = (productName?: string, productUrl?: string): strin
   return `https://zalo.me/${hotline}?text=${encodeURIComponent(text)}`;
 };
 
-// Fetch products with filters (always fresh real-time data)
-export const fetchProducts = async (params: FilterParams = {}, _forceRefresh = true): Promise<ProductsResponse> => {
+// Fetch products with filters (Server: Fast ISR Edge cache / Client: Real-time with SWR)
+export const fetchProducts = async (params: FilterParams = {}, _forceRefresh = false): Promise<ProductsResponse> => {
   const query = new URLSearchParams();
   if (params.search) query.append('search', params.search);
   if (params.brand && params.brand !== 'all') query.append('brand', params.brand);
@@ -125,11 +135,14 @@ export const fetchProducts = async (params: FilterParams = {}, _forceRefresh = t
   if (params.page) query.append('page', params.page.toString());
   if (params.limit) query.append('limit', params.limit.toString());
 
+  const isServer = typeof window === 'undefined';
+  const baseUrl = getApiBaseUrl();
+  const fetchOptions: RequestInit = isServer
+    ? { next: { revalidate: 30, tags: ['products'] }, signal: AbortSignal.timeout(15000) }
+    : { cache: 'no-store', signal: AbortSignal.timeout(30000) };
+
   try {
-    const res = await fetch(`${API_BASE_URL}/products?${query.toString()}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(30000),
-    });
+    const res = await fetch(`${baseUrl}/products?${query.toString()}`, fetchOptions);
 
     if (!res.ok) {
       throw new Error(`API responded with ${res.status}`);
@@ -184,14 +197,17 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
 export const fetchProductBySlug = fetchProductByIdOrSlug;
 export const fetchProductById = fetchProductByIdOrSlug;
 
-// Fetch categories (always fresh real-time data)
-export const fetchCategories = async (type?: string, _forceRefresh = true): Promise<Category[]> => {
+// Fetch categories (Server: 60s ISR / Client: Fast cached)
+export const fetchCategories = async (type?: string, _forceRefresh = false): Promise<Category[]> => {
+  const isServer = typeof window === 'undefined';
+  const baseUrl = getApiBaseUrl();
+  const fetchOptions: RequestInit = isServer
+    ? { next: { revalidate: 60, tags: ['categories'] }, signal: AbortSignal.timeout(15000) }
+    : { cache: 'no-store', signal: AbortSignal.timeout(30000) };
+
   try {
     const query = type ? `?type=${type}` : '';
-    const res = await fetch(`${API_BASE_URL}/categories${query}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(30000),
-    });
+    const res = await fetch(`${baseUrl}/categories${query}`, fetchOptions);
 
     if (res.ok) {
       const data = await res.json();

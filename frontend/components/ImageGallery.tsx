@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Download, Maximize2, X, Camera } from 'lucide-react';
 import { getThumbnailUrl, getMainDisplayImageUrl } from '../lib/api';
 
@@ -19,6 +19,32 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
   const rawList = images && images.length > 0 ? images : [];
   const imageList = rawList.map(sanitize);
+
+  // Reset loaded cache when product or images change
+  useEffect(() => {
+    setLoadedImages({});
+    setThumbLoaded({});
+    setSelectedIndex(0);
+  }, [images]);
+
+  // Background preloader: Automatically fetch all remaining high-res images in background
+  useEffect(() => {
+    if (imageList.length <= 1) return;
+
+    // Small delay (120ms) to let primary image #1 and critical page UI render first
+    const timer = setTimeout(() => {
+      imageList.forEach((img, idx) => {
+        if (idx === 0) return; // Index 0 loads immediately as primary
+        const preloadImg = new window.Image();
+        preloadImg.src = getMainDisplayImageUrl(img);
+        preloadImg.onload = () => {
+          setLoadedImages((prev) => ({ ...prev, [idx]: true }));
+        };
+      });
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [imageList]);
 
   if (imageList.length === 0) {
     return (
