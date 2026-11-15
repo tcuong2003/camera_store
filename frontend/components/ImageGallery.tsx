@@ -12,6 +12,8 @@ interface ImageGalleryProps {
 export default function ImageGallery({ images, productName }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+  const [thumbLoaded, setThumbLoaded] = useState<Record<number, boolean>>({});
 
   const sanitize = (url: string) => (url ? url.replace(/\.(heic|heif)$/i, '.jpg') : url);
 
@@ -58,11 +60,25 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
   return (
     <div className="space-y-3">
       {/* Main Large Image View */}
-      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 group shadow-md">
+      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 group shadow-md">
+        {/* Skeleton Shimmer Placeholder when main image is loading */}
+        {!loadedImages[selectedIndex] && (
+          <div className="absolute inset-0 bg-slate-100 flex flex-col items-center justify-center animate-pulse z-0">
+            <div className="w-16 h-16 rounded-2xl bg-slate-200/90 flex items-center justify-center text-slate-400 mb-2 shadow-xs">
+              <Camera className="w-8 h-8 text-slate-400 animate-pulse" />
+            </div>
+            <span className="text-xs font-semibold text-slate-400 tracking-wide">Đang tải ảnh #{selectedIndex + 1}...</span>
+          </div>
+        )}
+
         <img
           src={getMainDisplayImageUrl(currentImage)}
           alt={`${productName} - Ảnh ${selectedIndex + 1}`}
+          onLoad={() => {
+            setLoadedImages((prev) => ({ ...prev, [selectedIndex]: true }));
+          }}
           onError={(e) => {
+            setLoadedImages((prev) => ({ ...prev, [selectedIndex]: true }));
             const target = e.target as HTMLImageElement;
             if (target.src.includes('.heic') || target.src.includes('.heif')) {
               target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
@@ -70,7 +86,9 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
               target.src = currentImage;
             }
           }}
-          className="w-full h-full object-contain sm:object-cover"
+          className={`w-full h-full object-contain sm:object-cover transition-opacity duration-300 relative z-[1] ${
+            loadedImages[selectedIndex] ? 'opacity-100' : 'opacity-0'
+          }`}
         />
 
         {/* Counter Badge */}
@@ -124,6 +142,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
         <div className="flex items-center gap-2.5 overflow-x-auto py-2 px-1 scrollbar-thin overscroll-x-contain touch-pan-x">
           {imageList.map((img, idx) => {
             const isSelected = selectedIndex === idx;
+            const isThumbReady = thumbLoaded[idx];
             return (
               <button
                 key={idx}
@@ -132,14 +151,23 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                 className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border-2 transition-all cursor-pointer ${
                   isSelected
                     ? 'border-amber-500 ring-2 ring-amber-400/70 shadow-md shadow-amber-500/20 opacity-100'
-                    : 'border-slate-200 hover:border-slate-300 opacity-60 hover:opacity-100'
+                    : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
                 }`}
               >
+                {!isThumbReady && (
+                  <div className="absolute inset-0 bg-slate-200/90 animate-pulse flex items-center justify-center z-0">
+                    <Camera className="w-4 h-4 text-slate-400 animate-pulse" />
+                  </div>
+                )}
                 <img
                   src={getThumbnailUrl(img)}
                   alt={`Thumbnail ${idx + 1}`}
                   loading="eager"
+                  onLoad={() => {
+                    setThumbLoaded((prev) => ({ ...prev, [idx]: true }));
+                  }}
                   onError={(e) => {
+                    setThumbLoaded((prev) => ({ ...prev, [idx]: true }));
                     const target = e.target as HTMLImageElement;
                     if (target.src.includes('.heic') || target.src.includes('.heif')) {
                       target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
@@ -147,9 +175,11 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
                       target.src = img;
                     }
                   }}
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover relative z-[1] transition-opacity duration-200 ${
+                    isThumbReady ? 'opacity-100' : 'opacity-0'
+                  }`}
                 />
-                <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
+                <span className="absolute bottom-0.5 right-1 z-10 text-[9px] font-mono text-white bg-slate-950/80 px-1 rounded">
                   #{idx + 1}
                 </span>
               </button>

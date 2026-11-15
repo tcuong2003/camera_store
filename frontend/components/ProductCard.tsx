@@ -27,6 +27,7 @@ const stripHtml = (html?: string): string => {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const rawThumbnail = product.images?.[0] || '';
   const thumbnail = rawThumbnail.replace(/\.(heic|heif)$/i, '.jpg');
   const imageCount = product.images?.length || 0;
@@ -46,22 +47,33 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Thumbnail / Album Cover */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 flex items-center justify-center">
         {thumbnail && !imageError ? (
-          <img
-            src={getCardThumbnailUrl(thumbnail)}
-            alt={product.name}
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              if (target.src.includes('.heic') || target.src.includes('.heif')) {
-                target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
-              } else if (target.src !== thumbnail) {
-                target.src = thumbnail;
-              } else {
-                setImageError(true);
-              }
-            }}
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-          />
+          <>
+            {!isImageLoaded && (
+              <div className="absolute inset-0 bg-slate-200/90 animate-pulse flex items-center justify-center z-0">
+                <Camera className="w-8 h-8 text-slate-400 animate-pulse" />
+              </div>
+            )}
+            <img
+              src={getCardThumbnailUrl(thumbnail)}
+              alt={product.name}
+              loading="lazy"
+              onLoad={() => setIsImageLoaded(true)}
+              onError={(e) => {
+                setIsImageLoaded(true);
+                const target = e.target as HTMLImageElement;
+                if (target.src.includes('.heic') || target.src.includes('.heif')) {
+                  target.src = target.src.replace(/\.(heic|heif)$/i, '.jpg');
+                } else if (target.src !== thumbnail) {
+                  target.src = thumbnail;
+                } else {
+                  setImageError(true);
+                }
+              }}
+              className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-300 relative z-[1] ${
+                isImageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center text-slate-300 p-4 text-center">
             <Camera className="w-10 h-10 mb-1" />
