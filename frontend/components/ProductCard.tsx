@@ -10,6 +10,9 @@ interface ProductCardProps {
   product: Product;
 }
 
+// Global in-memory cache of already loaded card thumbnails to prevent flickering/re-fade on navigation
+const loadedThumbnailCache = new Set<string>();
+
 // Helper to strip HTML tags and clean up whitespace for plain text preview
 const stripHtml = (html?: string): string => {
   if (!html) return '';
@@ -25,11 +28,14 @@ const stripHtml = (html?: string): string => {
     .trim();
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+function ProductCard({ product }: ProductCardProps) {
   const rawThumbnail = product.images?.[0] || '';
   const thumbnail = rawThumbnail.replace(/\.(heic|heif)$/i, '.jpg');
+  const cardThumbnailUrl = thumbnail ? getCardThumbnailUrl(thumbnail) : '';
+  const isInitiallyCached = Boolean(cardThumbnailUrl && loadedThumbnailCache.has(cardThumbnailUrl));
+
+  const [imageError, setImageError] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(isInitiallyCached);
   const imageCount = product.images?.length || 0;
   const plainDesc = stripHtml(product.description);
   const displayBrand = !product.brand || !product.brand.trim() || product.brand.toLowerCase() === 'other' || product.brand.toLowerCase() === 'khac'
@@ -54,10 +60,19 @@ export default function ProductCard({ product }: ProductCardProps) {
               </div>
             )}
             <img
-              src={getCardThumbnailUrl(thumbnail)}
+              ref={(node) => {
+                if (node && node.complete && !isImageLoaded) {
+                  if (cardThumbnailUrl) loadedThumbnailCache.add(cardThumbnailUrl);
+                  setIsImageLoaded(true);
+                }
+              }}
+              src={cardThumbnailUrl}
               alt={product.name}
               loading="lazy"
-              onLoad={() => setIsImageLoaded(true)}
+              onLoad={() => {
+                if (cardThumbnailUrl) loadedThumbnailCache.add(cardThumbnailUrl);
+                setIsImageLoaded(true);
+              }}
               onError={(e) => {
                 setIsImageLoaded(true);
                 const target = e.target as HTMLImageElement;
@@ -69,7 +84,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                   setImageError(true);
                 }
               }}
-              className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-300 relative z-[1] ${
+              className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 relative z-[1] ${
                 isImageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
             />
@@ -137,3 +152,5 @@ export default function ProductCard({ product }: ProductCardProps) {
     </Link>
   );
 }
+
+export default React.memo(ProductCard);

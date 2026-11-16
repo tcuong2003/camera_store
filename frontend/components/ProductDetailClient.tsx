@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ImageGallery from './ImageGallery';
 import ProductCard from './ProductCard';
 import ZaloChatButton from './ZaloChatButton';
@@ -29,6 +30,7 @@ export default function ProductDetailClient({
   initialData,
   slug,
 }: ProductDetailClientProps) {
+  const router = useRouter();
   const [data, setData] = useState<SingleProductResponse | null>(initialData || null);
   const [isLoading, setIsLoading] = useState<boolean>(!initialData || !initialData.product);
 
@@ -132,7 +134,16 @@ export default function ProductDetailClient({
     <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-8">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
-        <Link href="/" className="hover:text-amber-600 flex items-center gap-1 transition-colors font-medium">
+        <Link
+          href="/"
+          onClick={(e) => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              e.preventDefault();
+              router.back();
+            }
+          }}
+          className="hover:text-amber-600 flex items-center gap-1 transition-colors font-medium"
+        >
           <ArrowLeft className="w-4 h-4" />
           <span>Danh mục máy ảnh</span>
         </Link>

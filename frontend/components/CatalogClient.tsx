@@ -28,6 +28,11 @@ interface CatalogClientProps {
   initialCategories?: Category[];
 }
 
+// In-memory module cache to instantly preserve exact product state during client-side navigation
+let memoryProductsCache: Product[] | null = null;
+let memoryTotalCount = 0;
+let memoryTotalPages = 1;
+
 export default function CatalogClient({
   initialProducts = [],
   initialTotalCount = 0,
@@ -56,6 +61,9 @@ export default function CatalogClient({
   const cached = getCachedState();
 
   const saveToCache = (productsData: Product[], total: number, pages: number) => {
+    memoryProductsCache = productsData;
+    memoryTotalCount = total;
+    memoryTotalPages = pages;
     if (typeof window === 'undefined') return;
     try {
       const payload = JSON.stringify({
@@ -69,27 +77,33 @@ export default function CatalogClient({
     } catch {}
   };
 
-  // Initialize product state: priority: SSR props -> sessionStorage cache -> empty
+  // Initialize product state: priority: In-memory RAM -> SSR props -> localStorage cache -> empty
   const [products, setProducts] = useState<Product[]>(() => {
+    if (memoryProductsCache && memoryProductsCache.length > 0) return memoryProductsCache;
     if (initialProducts && initialProducts.length > 0) return initialProducts;
     if (cached?.products) return cached.products;
     return [];
   });
 
   const [totalCount, setTotalCount] = useState<number>(() => {
+    if (memoryProductsCache && memoryProductsCache.length > 0) return memoryTotalCount;
     if (initialTotalCount > 0) return initialTotalCount;
     if (cached?.total !== undefined) return cached.total;
     return initialProducts?.length || 0;
   });
 
   const [totalPages, setTotalPages] = useState<number>(() => {
+    if (memoryProductsCache && memoryProductsCache.length > 0) return memoryTotalPages;
     if (initialTotalPages > 0) return initialTotalPages;
     if (cached?.totalPages !== undefined) return cached.totalPages;
     return 1;
   });
 
-  // If we already have products (from SSR or Cache), do NOT display skeleton on initial mount!
-  const hasInitialData = (initialProducts && initialProducts.length > 0) || (cached && cached.products?.length > 0);
+  // If we already have products (from Memory, SSR or Cache), do NOT display skeleton on initial mount!
+  const hasInitialData =
+    (memoryProductsCache && memoryProductsCache.length > 0) ||
+    (initialProducts && initialProducts.length > 0) ||
+    (cached && cached.products?.length > 0);
   const [isLoading, setIsLoading] = useState<boolean>(!hasInitialData);
 
   const [currentPage, setCurrentPage] = useState<number>(() => {
@@ -161,9 +175,10 @@ export default function CatalogClient({
       filters.sort !== 'newest' ||
       currentPage > 1;
 
-    // If it is the first load AND we already have SSR/Cache data AND no active filters:
-    // Do NOT show skeleton! Revalidate quietly in the background!
-    const shouldRevalidateSilently = isFirstLoadRef.current && hasInitialData && !hasActiveFilters;
+    // If we already have products on screen (whether from RAM, SSR or cache),
+    // do NOT show skeleton! Revalidate quietly in the background!
+    const hasCurrentProducts = products.length > 0 || hasInitialData;
+    const shouldRevalidateSilently = hasCurrentProducts && (!hasActiveFilters || isFirstLoadRef.current);
 
     if (!shouldRevalidateSilently) {
       setIsLoading(true);
@@ -185,7 +200,18 @@ export default function CatalogClient({
 
         if (isMounted) {
           const newProducts = res.products || [];
-          setProducts(newProducts);
+
+          // Safe reconciliation: only update state if products actually changed to prevent any jitter/flicker
+          setProducts((prev) => {
+            if (
+              prev.length === newProducts.length &&
+              prev.every((p, i) => p._id === newProducts[i]?._id && p.updatedAt === newProducts[i]?.updatedAt)
+            ) {
+              return prev; // SAME ARRAY REFERENCE -> React skips re-render completely!
+            }
+            return newProducts;
+          });
+
           setTotalCount(res.total || newProducts.length);
           setTotalPages(res.totalPages || 1);
 
