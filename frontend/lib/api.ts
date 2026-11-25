@@ -197,13 +197,14 @@ export const fetchProductByIdOrSlug = async (idOrSlug: string): Promise<SinglePr
 export const fetchProductBySlug = fetchProductByIdOrSlug;
 export const fetchProductById = fetchProductByIdOrSlug;
 
-// Fetch categories (Server: 60s ISR / Client: Fast cached)
+// Fetch fresh categories on both server and client
 export const fetchCategories = async (type?: string, _forceRefresh = false): Promise<Category[]> => {
   const isServer = typeof window === 'undefined';
   const baseUrl = getApiBaseUrl();
-  const fetchOptions: RequestInit = isServer
-    ? { next: { revalidate: 60, tags: ['categories'] }, signal: AbortSignal.timeout(15000) }
-    : { cache: 'no-store', signal: AbortSignal.timeout(30000) };
+  const fetchOptions: RequestInit = {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(isServer ? 15000 : 30000),
+  };
 
   try {
     const query = type ? `?type=${type}` : '';
