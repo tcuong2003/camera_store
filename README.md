@@ -220,7 +220,7 @@ Truy cập đường dẫn: `http://localhost:3000/admin` (hoặc `https://sp.ma
    - **Framework Preset:** Next.js
    - **Root Directory:** `frontend`
 4. Cấu hình **Environment Variables**:
-   - `NEXT_PUBLIC_API_URL`: `https://mayanhtop1-backend.onrender.com/api` (URL Render vừa tạo ở trên).
+   - `NEXT_PUBLIC_API_URL`: URL backend Render đầy đủ, ví dụ `https://ten-dich-vu.onrender.com/api`. Biến này bắt buộc, chọn loại Config và đúng môi trường trên Vercel; deploy lại sau khi thay đổi. Không điền token hoặc mật khẩu vì giá trị này công khai trong trình duyệt.
    - `NEXT_PUBLIC_HOTLINE`: `0986834449`
    - `NEXT_PUBLIC_ZALO_URL`: `https://zalo.me/0986834449`
 5. Bấm **Deploy**.

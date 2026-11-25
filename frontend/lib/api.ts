@@ -1,33 +1,19 @@
 import { Product, Category } from './mockData';
 
 export const getApiBaseUrl = (): string => {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (envUrl && /^https?:\/\//i.test(envUrl)) {
-    return envUrl.replace(/\/$/, '');
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  let url: URL;
+  try {
+    url = new URL(envUrl || '');
+  } catch {
+    throw new Error('NEXT_PUBLIC_API_URL phải là URL backend tuyệt đối, ví dụ https://backend.onrender.com/api');
   }
 
-  // Browser: if relative /api was specifically configured
-  if (typeof window !== 'undefined' && envUrl) {
-    return envUrl.replace(/\/$/, '');
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error('NEXT_PUBLIC_API_URL phải là URL HTTP(S) hợp lệ, không chứa credentials, query hoặc fragment');
   }
 
-  // Node.js server (SSR / Server Component): Must be an absolute URL
-  if (envUrl && !/^https?:\/\//i.test(envUrl)) {
-    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-      return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}${envUrl}`;
-    }
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}${envUrl}`;
-    }
-    if (process.env.NEXT_PUBLIC_SITE_URL) {
-      return `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}${envUrl}`;
-    }
-    if (process.env.FRONTEND_URL) {
-      return `${process.env.FRONTEND_URL.replace(/\/$/, '')}${envUrl}`;
-    }
-  }
-
-  return 'https://mayanhtop1-backend.onrender.com/api';
+  return envUrl!.replace(/\/+$/, '');
 };
 
 const API_BASE_URL = getApiBaseUrl();
