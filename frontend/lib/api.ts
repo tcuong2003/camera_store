@@ -305,8 +305,6 @@ export const adminCreateCategory = async (
   categoryData: { name: string; type: string; order?: number; minPrice?: number | null; maxPrice?: number | null },
   token: string
 ) => {
-  clearApiCache();
-  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories`, {
     method: 'POST',
     headers: {
@@ -315,7 +313,11 @@ export const adminCreateCategory = async (
     },
     body: JSON.stringify(categoryData),
   });
-  return await res.json();
+  const data = await res.json();
+  if (res.ok && data.success) {
+    clearApiCache();
+  }
+  return data;
 };
 
 export const adminUpdateCategory = async (
@@ -323,8 +325,6 @@ export const adminUpdateCategory = async (
   categoryData: { name?: string; type?: string; order?: number; isActive?: boolean; minPrice?: number | null; maxPrice?: number | null },
   token: string
 ) => {
-  clearApiCache();
-  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
     method: 'PUT',
     headers: {
@@ -333,19 +333,25 @@ export const adminUpdateCategory = async (
     },
     body: JSON.stringify(categoryData),
   });
-  return await res.json();
+  const data = await res.json();
+  if (res.ok && data.success) {
+    clearApiCache();
+  }
+  return data;
 };
 
 export const adminDeleteCategory = async (id: string, token: string) => {
-  clearApiCache();
-  notifyCategoriesUpdated();
   const res = await fetch(`${API_BASE_URL}/categories/${id}`, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
-  return await res.json();
+  const data = await res.json();
+  if (res.ok && data.success) {
+    clearApiCache();
+  }
+  return data;
 };
 
 export const adminReorderProduct = async (

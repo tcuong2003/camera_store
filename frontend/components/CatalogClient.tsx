@@ -304,7 +304,13 @@ export default function CatalogClient({
   }, []);
 
   useEffect(() => {
-    // Cross-tab synchronization & auto-refresh when admin clears cache or tab gains focus
+    reloadCategories();
+    window.addEventListener('focus', reloadCategories);
+    return () => window.removeEventListener('focus', reloadCategories);
+  }, [reloadCategories]);
+
+  useEffect(() => {
+    // Cross-tab synchronization when admin clears cache
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'mayanhtop1_categories_updated' || e.key === 'mayanhtop1_cache_cleared_at') {
         reloadCategories();
